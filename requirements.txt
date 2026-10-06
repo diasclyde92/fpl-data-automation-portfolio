@@ -1,0 +1,2 @@
+# Core dependencies will be added incrementally in upcoming phases (e.g., requests, beautifulsoup4, pandas).
+# No external runtime libraries are required for the initial project skeleton.
