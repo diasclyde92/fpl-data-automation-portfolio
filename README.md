@@ -77,18 +77,125 @@ Web Source (HTML / API)
   - Resilient HTTP client with retry logic, custom exception taxonomy, BeautifulSoup parsing helper, and abstract base scraper lifecycle.
 - [x] **Phase 3: First Concrete Scraper Implementation**
   - Concrete scraper demonstration (`BookScraper`) against a public test target, value normalization, error tolerance, CLI execution, and unit/integration testing.
-- [ ] **Phase 4: Target Analysis & Data Contract (FPL)**
-  - Defining target schemas, extraction scope, and storage models for the primary use case.
-- [ ] **Phase 4: Extraction Implementation**
-  - Concrete scrapers utilizing the foundation layer with rate limiting and robust error handling.
-- [ ] **Phase 5: Transformation, Cleaning & Validation**
-  - Data normalization, type checking, anomaly detection, and SQLite persistence.
-- [ ] **Phase 6: Automated Reporting (Excel & PDF)**
+- [x] **Phase 4: Pagination & Raw Data Storage**
+  - Catalog pagination traversal, loop protection, and raw HTML artifact preservation under `data/raw/`.
+- [x] **Phase 5: Data Modeling, Validation & SQLite Persistence**
+  - Pydantic domain models, data validation/normalization, duplicate upsert handling, and relational persistence with SQLite.
+- [ ] **Phase 6: Target Analysis & Primary Use Case (FPL)**
+  - Concrete domain scraper for FPL statistics, target schemas, and primary data contracts.
+- [ ] **Phase 7: Automated Reporting (Excel & PDF)**
   - Client-ready styled Excel spreadsheets and executive summary PDFs.
-- [ ] **Phase 7: Web Dashboard Integration**
+- [ ] **Phase 8: Web Dashboard Integration**
   - Lightweight visualization layer connected to the pipeline outputs.
-- [ ] **Phase 8: Automation & CI/CD Pipeline**
+- [ ] **Phase 9: Automation & CI/CD Pipeline**
   - GitHub Actions workflow for scheduled headless execution and artifact archiving.
+
+---
+
+## 🏗️ End-to-End Pipeline Architecture
+
+The system enforces strict separation of concerns across extraction, modeling, validation, and storage:
+
+```
+                  Target Website (HTML)
+                           │
+                           ▼
+                      HTTPClient (retries, timeouts, headers)
+                           │
+                           ▼
+                      BookScraper (traverses pagination controls)
+                     ┌─────┴────────────────────────┐
+                     ▼                              ▼
+             Raw HTML Responses             Extracted Records
+                     │                     (loose Python dicts)
+                     ▼                              │
+            [ RawStorage Layer ]                    ▼
+                     │                      [ Book Data Model ]
+                     ▼                         (Pydantic v2)
+          data/raw/books/<run_id>/                  │
+              ├── page_001.html                     ▼
+              └── page_002.html             [ Data Validation ]
+                                            (type checking & rules)
+                                             ┌──────┴──────┐
+                                             ▼             ▼
+                                        Valid Books   Invalid Records
+                                             │         (logged/audited)
+                                             ▼
+                                     [ SQLiteStorage ]
+                                  (parameterized upsert)
+                                             │
+                                             ▼
+                                  data/processed/books.db
+```
+
+### 🧠 Why Separation of Concerns Matters
+In professional data engineering:
+- **Scraper's Sole Job**: Navigate the web and extract raw values from HTML without caring how data is stored.
+- **Model & Validation Job**: Enforce domain invariants and clean inputs before downstream persistence without caring about HTML tags.
+- **Database Storage Job**: Manage relational schemas, connection lifecycles, and transactions without web or parsing dependencies.
+- **Pipeline Orchestrator**: Coordinates the flow cleanly so scrapers can easily be replaced (e.g. swapping `BookScraper` for `FPLScraper`) while reusing the storage and pipeline patterns.
+
+---
+
+## 🗄️ Relational Schema & Persistence (Phase 5)
+
+### SQLite Schema (`books` table)
+```sql
+CREATE TABLE IF NOT EXISTS books (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    price REAL NOT NULL,
+    rating INTEGER,
+    availability TEXT NOT NULL,
+    detail_url TEXT NOT NULL UNIQUE,
+    scraped_at TEXT NOT NULL
+);
+```
+
+### 🔄 Duplicate Handling Strategy (Upsert)
+To handle repeated pipeline runs over dynamic web targets without generating uncontrolled duplicates, the schema enforces a `UNIQUE` constraint on `detail_url`. 
+
+Records are persisted using SQLite's atomic upsert:
+```sql
+INSERT INTO books (title, price, rating, availability, detail_url, scraped_at)
+VALUES (?, ?, ?, ?, ?, ?)
+ON CONFLICT(detail_url) DO UPDATE SET
+    title = excluded.title,
+    price = excluded.price,
+    rating = excluded.rating,
+    availability = excluded.availability,
+    scraped_at = excluded.scraped_at;
+```
+If a previously scraped book has a price change or rating update in subsequent runs, the row is updated in-place with the latest information and timestamp rather than duplicated.
+
+---
+
+## 💻 Running the Pipeline CLI
+
+Execute the complete end-to-end pipeline (scrape $\rightarrow$ validate $\rightarrow$ SQLite):
+
+```bash
+# Scrape 2 pages, validate, and persist to data/processed/books.db
+python -m src.pipeline.book_pipeline --max-pages 2 --save-raw --verbose
+
+# Run with custom database destination
+python -m src.pipeline.book_pipeline --max-pages 1 --db-path data/processed/test.db
+```
+
+### Sample CLI Output
+```text
+============================================================
+Book Data Pipeline Execution Summary
+============================================================
+Pages scraped:       2
+Records extracted:   40
+Valid records:       40
+Invalid records:     0
+Records persisted:   40
+Database:            data/processed/books.db
+Raw data run ID:     books_20261006_044537
+============================================================
+```
 
 ---
 
