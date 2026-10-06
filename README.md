@@ -81,20 +81,22 @@ Web Source (HTML / API)
   - Catalog pagination traversal, loop protection, and raw HTML artifact preservation under `data/raw/`.
 - [x] **Phase 5: Data Modeling, Validation & SQLite Persistence**
   - Pydantic domain models, data validation/normalization, duplicate upsert handling, and relational persistence with SQLite.
-- [ ] **Phase 6: Target Analysis & Primary Use Case (FPL)**
+- [x] **Phase 6: Relational Data Analytics (Pandas)**
+  - Decoupled analytics layer reading SQLite records into structured DataFrames, computing statistics, ratings distributions, rankings, and data quality diagnostics.
+- [ ] **Phase 7: Target Analysis & Primary Use Case (FPL)**
   - Concrete domain scraper for FPL statistics, target schemas, and primary data contracts.
-- [ ] **Phase 7: Automated Reporting (Excel & PDF)**
+- [ ] **Phase 8: Automated Reporting (Excel & PDF)**
   - Client-ready styled Excel spreadsheets and executive summary PDFs.
-- [ ] **Phase 8: Web Dashboard Integration**
+- [ ] **Phase 9: Web Dashboard Integration**
   - Lightweight visualization layer connected to the pipeline outputs.
-- [ ] **Phase 9: Automation & CI/CD Pipeline**
+- [ ] **Phase 10: Automation & CI/CD Pipeline**
   - GitHub Actions workflow for scheduled headless execution and artifact archiving.
 
 ---
 
 ## 🏗️ End-to-End Pipeline Architecture
 
-The system enforces strict separation of concerns across extraction, modeling, validation, and storage:
+The system enforces strict separation of concerns across extraction, modeling, validation, storage, and analytics:
 
 ```
                   Target Website (HTML)
@@ -126,14 +128,51 @@ The system enforces strict separation of concerns across extraction, modeling, v
                                              │
                                              ▼
                                   data/processed/books.db
+                                             │
+                                             ▼
+                                     [ BookAnalytics ]
+                                      (Pandas layer)
+                                 ┌───────────┴───────────┐
+                                 ▼                       ▼
+                          AnalyticsResult         Data Quality
+                          (stats & rankings)       Diagnostics
+                                 │
+                                 ▼
+                     Downstream Reporting & BI
+                       (Excel, PDF, Web UI)
 ```
 
 ### 🧠 Why Separation of Concerns Matters
 In professional data engineering:
-- **Scraper's Sole Job**: Navigate the web and extract raw values from HTML without caring how data is stored.
+- **Scraper's Sole Job**: Navigate the web and extract raw values from HTML without caring how data is stored or analyzed.
 - **Model & Validation Job**: Enforce domain invariants and clean inputs before downstream persistence without caring about HTML tags.
-- **Database Storage Job**: Manage relational schemas, connection lifecycles, and transactions without web or parsing dependencies.
-- **Pipeline Orchestrator**: Coordinates the flow cleanly so scrapers can easily be replaced (e.g. swapping `BookScraper` for `FPLScraper`) while reusing the storage and pipeline patterns.
+- **Database Storage Job**: Manage relational schemas, connection lifecycles, and transactions without web or analytical dependencies.
+- **Analytics Layer Job**: Consume clean tabular data from SQLite, perform vectorized aggregation with Pandas, compute summary statistics, and provide structured outputs for future Excel/PDF/dashboard consumers.
+- **Pipeline Orchestrator**: Coordinates the flow cleanly so scrapers can easily be replaced (e.g. swapping `BookScraper` for `FPLScraper`) while reusing storage, analytics, and reporting patterns.
+
+---
+
+## 📊 Relational Data Analytics (Phase 6)
+
+The [`BookAnalytics`](file:///src/analytics/book_analytics.py) component loads SQLite records into typed Pandas DataFrames and computes business metrics without executing ad-hoc queries across reporting scripts.
+
+### 📈 Metrics & Insights Calculated
+1. **Descriptive Statistics**: Total book count, average price, median price, minimum price, maximum price, and average star rating.
+2. **Frequency Distributions**:
+   - Star rating distribution ($1\dots5$ stars).
+   - Stock availability breakdown (`"In stock"`, `"Out of stock"`).
+3. **Product Rankings**: Top $N$ most expensive books, bottom $N$ least expensive books, and top-rated books (tie-broken by price).
+4. **Data Quality Audit**: Checks for missing prices, unrated records, blank availability strings, duplicate detail URLs, and empty datasets.
+
+### 💻 Running the Analytics CLI
+Analyze the local SQLite database and view formatted summary metrics:
+
+```bash
+python -m src.analytics.book_analytics
+
+# Run against custom database location
+python -m src.analytics.book_analytics --db-path data/processed/books.db
+```
 
 ---
 
