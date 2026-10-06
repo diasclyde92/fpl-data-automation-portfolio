@@ -87,8 +87,8 @@ Web Source (HTML / API)
   - Executive multi-tab `.xlsx` client deliverable with KPI summary, catalog data tables, price distributions, rating charts, and inventory breakdowns.
 - [x] **Phase 8: Automated PDF Executive Briefing (ReportLab)**
   - Multi-page client-ready PDF brief with dynamic narrative insights, KPI scorecard, pricing charts, rating breakdowns, and data governance audit.
-- [ ] **Phase 9: Target Analysis & Primary Use Case (FPL)**
-  - Concrete domain scraper for FPL statistics, target schemas, and primary data contracts.
+- [x] **Phase 9: Target Analysis & Primary Use Case (FPL)**
+  - Concrete domain pipeline for Fantasy Premier League: official API extraction, Pydantic data modeling, SQLite relational persistence, and Pandas analytics.
 - [ ] **Phase 10: Web Dashboard Integration**
   - Lightweight visualization layer connected to the pipeline outputs.
 - [ ] **Phase 11: Automation & CI/CD Pipeline**
@@ -151,6 +151,44 @@ In professional data engineering:
 - **Database Storage Job**: Manage relational schemas, connection lifecycles, and transactions without web or analytical dependencies.
 - **Analytics Layer Job**: Consume clean tabular data from SQLite, perform vectorized aggregation with Pandas, compute summary statistics, and provide structured outputs for future Excel/PDF/dashboard consumers.
 - **Pipeline Orchestrator**: Coordinates the flow cleanly so scrapers can easily be replaced (e.g. swapping `BookScraper` for `FPLScraper`) while reusing storage, analytics, and reporting patterns.
+
+---
+
+## ⚽ Real-World Data Pipeline: Fantasy Premier League (Phase 9)
+
+In Phase 9, the reusable pipeline architecture built and tested with Books to Scrape was extended to a real-world, rapidly changing sports data target: **Fantasy Premier League (FPL)**.
+
+### 🌐 Source Data Architecture
+- **Endpoint**: Official FPL API bootstrap static endpoint (`https://fantasy.premierleague.com/api/bootstrap-static/`).
+- **Data Flow**:
+  1. [`HTTPClient`](file:///src/scraper/http_client.py) performs resilient GET requests with desktop User-Agent simulation and exponential retry backoff.
+  2. [`RawStorage`](file:///src/storage/raw_storage.py) preserves immutable raw JSON responses under `data/raw/fpl/<run_id>/bootstrap.json` for auditing and historical backtesting.
+  3. [`FPLScraper`](file:///src/scraper/fpl_scraper.py) extracts raw element structures, resolving team IDs to short names (e.g. `ARS`, `MCI`, `LIV`) and element type IDs to standard position abbreviations (`GKP`, `DEF`, `MID`, `FWD`), scaling tenth-million prices (`now_cost` `61` $\to$ `£6.1m`), and parsing percentage strings into floats.
+  4. [`FPLPlayer`](file:///src/models/fpl_player.py) model validates domain invariants using Pydantic v2.
+  5. [`FPLStorage`](file:///src/storage/fpl_storage.py) executes parameterized upserts (`INSERT ... ON CONFLICT(id) DO UPDATE SET ...`) into `data/processed/fpl.db`.
+  6. [`FPLAnalytics`](file:///src/analytics/fpl_analytics.py) computes key fantasy metrics: points-per-million value rankings, points-per-90 rates, positional & team totals, top form leaders, and data hygiene audits.
+
+### 💻 Running the FPL Pipeline CLI
+Execute live extraction, validation, raw JSON backup, and relational persistence:
+
+```bash
+# Run extraction and persist to SQLite (data/processed/fpl.db)
+python -m src.pipeline.fpl_pipeline
+
+# Run extraction with raw JSON preservation under data/raw/fpl/<run_id>/
+python -m src.pipeline.fpl_pipeline --save-raw
+```
+
+### 📈 Running the FPL Analytics CLI
+Run analytical metrics, top value rankings, and data quality diagnostics:
+
+```bash
+# Run analytics against the default FPL database
+python -m src.analytics.fpl_analytics
+
+# Run analytics with custom database path
+python -m src.analytics.fpl_analytics --db-path data/processed/fpl.db
+```
 
 ---
 

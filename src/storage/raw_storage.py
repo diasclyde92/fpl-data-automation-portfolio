@@ -70,3 +70,29 @@ class RawStorage:
         except OSError as exc:
             logger.error("Failed to write raw HTML to %s: %s", target_path, exc)
             raise
+
+    def save_json(self, dataset: str, run_id: str, filename: str, json_content: str) -> Path:
+        """Save raw JSON payload for an API/data scrape run.
+
+        Args:
+            dataset: Dataset category name (e.g. 'fpl').
+            run_id: Unique identifier for the scraping run.
+            filename: Target file name (e.g. 'bootstrap.json').
+            json_content: JSON string content.
+
+        Returns:
+            Path of the saved file.
+
+        Raises:
+            OSError: If writing to the filesystem fails.
+        """
+        run_dir = self.get_run_dir(dataset, run_id)
+        target_path = run_dir / filename
+
+        try:
+            target_path.write_text(json_content, encoding="utf-8")
+            logger.info("Saved raw JSON: %s (%d bytes)", target_path, len(json_content))
+            return target_path
+        except OSError as exc:
+            logger.error("Failed to write raw JSON to %s: %s", target_path, exc)
+            raise
