@@ -90,8 +90,9 @@ Web Source (HTML / API)
 - [x] **Phase 9: Target Analysis & Primary Use Case (FPL)**
   - Concrete domain pipeline for Fantasy Premier League: official API extraction, Pydantic data modeling, SQLite relational persistence, and Pandas analytics.
 - [x] **Phase 10: Web Dashboard Integration (Streamlit)**
-  - Interactive multi-tab web dashboard consuming FPLAnalytics: KPI scorecard, top player leaderboards, value analysis scatter plot, team/position distributions, player card explorer, and technical data quality audit.
-- [ ] **Phase 11: Automation & CI/CD Pipeline**
+- [x] **Phase 11: Historical Snapshot Storage (FPL)**
+  - Immutable historical player snapshots (`fpl_player_snapshots`), pipeline run audit log (`fpl_runs`), dual persistence (current state + historical snapshots), and idempotent transaction boundaries.
+- [ ] **Phase 12: Automation & CI/CD Pipeline**
   - GitHub Actions workflow for scheduled headless execution and artifact archiving.
 
 ---
@@ -234,7 +235,99 @@ python -m src.pipeline.fpl_pipeline --save-raw
 streamlit run src/dashboard/fpl_dashboard.py
 ```
 
-*(Note: Scheduled automation via GitHub Actions and historical tracking snapshots are planned for subsequent phases.)*
+---
+
+## 🕒 Historical Snapshot & Pipeline Run Storage (Phase 11)
+
+In Phase 11, the FPL pipeline evolved from an ephemeral current-state overwriting store into an **immutable, append-only historical snapshot repository** while preserving the current-state table for the live dashboard.
+
+### 🏛️ Dual Persistence Architecture
+```
+                         Official FPL API
+                                │
+                                ▼
+                           FPLPipeline
+                                │
+                                ▼
+                       FPLPlayer Validation
+                                │
+                     Run ID (e.g. fpl_20261006_083932)
+                                │
+          ┌─────────────────────┴─────────────────────┐
+          │                                           │
+          ▼                                           ▼
+[ Current State Table ]                     [ Run Audit & Snapshots ]
+      fpl_players                                   fpl_runs
+ (ON CONFLICT DO UPDATE)                      (execution audit log)
+          │                                           │
+          ▼                                           ▼
+    FPLAnalytics                            fpl_player_snapshots
+ (vectorized pandas)                     (append-only immutable store)
+          │                                 (UNIQUE on run_id, player_id)
+          ▼                                           │
+   Streamlit Dashboard                                ▼
+ (current-state viewer)                  Future Historical Analytics
+                                            & Trend Detection
+```
+
+### 🗄️ Relational Schema
+
+#### 1. Pipeline Run Audit Table (`fpl_runs`)
+Tracks execution health, record counts, and elapsed duration:
+```sql
+CREATE TABLE IF NOT EXISTS fpl_runs (
+    run_id TEXT PRIMARY KEY,
+    scraped_at TEXT NOT NULL,
+    source TEXT NOT NULL,
+    records_extracted INTEGER NOT NULL DEFAULT 0,
+    records_valid INTEGER NOT NULL DEFAULT 0,
+    records_invalid INTEGER NOT NULL DEFAULT 0,
+    records_persisted INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'started',
+    duration_seconds REAL,
+    error_message TEXT
+);
+```
+
+#### 2. Immutable Historical Snapshots (`fpl_player_snapshots`)
+Stores complete player statistics per execution run:
+```sql
+CREATE TABLE IF NOT EXISTS fpl_player_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT NOT NULL,
+    player_id INTEGER NOT NULL,
+    first_name TEXT NOT NULL,
+    second_name TEXT NOT NULL,
+    web_name TEXT NOT NULL,
+    team TEXT NOT NULL,
+    position TEXT NOT NULL,
+    price REAL NOT NULL,
+    total_points INTEGER NOT NULL,
+    event_points INTEGER NOT NULL,
+    selected_by_percent REAL NOT NULL,
+    goals INTEGER NOT NULL,
+    assists INTEGER NOT NULL,
+    clean_sheets INTEGER NOT NULL,
+    minutes INTEGER NOT NULL,
+    bonus INTEGER NOT NULL,
+    form REAL NOT NULL,
+    status TEXT NOT NULL,
+    scraped_at TEXT NOT NULL,
+    UNIQUE(run_id, player_id),
+    FOREIGN KEY(run_id) REFERENCES fpl_runs(run_id)
+);
+```
+
+### 🔒 Immutability & Duplicate Protection
+- **Append-Only History**: Successive pipeline runs append new player snapshot records under new timestamped `run_id`s without modifying or deleting prior run snapshots.
+- **Idempotency**: The `UNIQUE(run_id, player_id)` constraint paired with `INSERT OR IGNORE` ensures pipeline retries or accidental re-executions cannot duplicate data within the same run.
+- **Atomic Operations**: `FPLStorage.save_current_and_snapshots()` persists both the current-state upsert and the historical snapshot insert within a single database transaction.
+
+### 🧪 Two-Run Verification
+Executing the pipeline sequentially verifies dual persistence and snapshot immutability:
+- **Run 1 (`fpl_20261006_083932`)**: Extracted 667 $\to$ `fpl_players` (667) $\to$ `fpl_runs` (1) $\to$ `fpl_player_snapshots` (667).
+- **Run 2 (`fpl_20261006_083956`)**: Extracted 667 $\to$ `fpl_players` (667 updated) $\to$ `fpl_runs` (2) $\to$ `fpl_player_snapshots` (1,334 total, 667 per run).
+- Prior snapshots from Run 1 remain unaltered, providing a complete historical foundation for future time-series analytics and trend detection.
 
 ---
 

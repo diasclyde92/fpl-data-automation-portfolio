@@ -337,7 +337,12 @@ def test_fpl_pipeline_end_to_end_mocked(tmp_path: Path):
     assert result.valid_records == 1
     assert result.invalid_records == 0
     assert result.records_persisted == 1
+    assert result.status == "completed"
+    assert result.run_id.startswith("fpl_")
     assert storage.count_players() == 1
+    assert storage.count_runs() == 1
+    assert storage.count_snapshots() == 1
+    assert storage.count_snapshots(run_id=result.run_id) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -421,3 +426,167 @@ def test_fpl_analytics_summary_and_metrics(populated_fpl_storage: FPLStorage):
     assert result.points_by_position["FWD"] == 120
     assert result.points_by_position["MID"] == 85
     assert result.points_by_position["GKP"] == 40
+
+
+# ---------------------------------------------------------------------------
+# 6. FPL Historical Runs & Snapshots Tests (Phase 11)
+# ---------------------------------------------------------------------------
+
+def test_fpl_storage_schema_creates_runs_and_snapshots(tmp_path: Path):
+    """Verify schema initialization creates fpl_runs and fpl_player_snapshots."""
+    storage = FPLStorage(db_path=tmp_path / "schema_test.db")
+    assert storage.count_runs() == 0
+    assert storage.count_snapshots() == 0
+    assert storage.count_players() == 0
+
+
+def test_fpl_storage_run_lifecycle_completed(tmp_path: Path):
+    """Verify creating and completing a pipeline run record."""
+    storage = FPLStorage(db_path=tmp_path / "run_lifecycle.db")
+    run_id = "fpl_20261006_120000"
+
+    storage.create_run(run_id=run_id, source="https://test.api")
+    latest = storage.get_latest_run()
+    assert latest is not None
+    assert latest["run_id"] == run_id
+    assert latest["status"] == "started"
+
+    storage.complete_run(
+        run_id=run_id,
+        records_extracted=10,
+        records_valid=9,
+        records_invalid=1,
+        records_persisted=9,
+        duration_seconds=1.25,
+        status="completed_with_errors",
+    )
+
+    history = storage.get_run_history()
+    assert len(history) == 1
+    completed_run = history[0]
+    assert completed_run["run_id"] == run_id
+    assert completed_run["status"] == "completed_with_errors"
+    assert completed_run["records_extracted"] == 10
+    assert completed_run["records_persisted"] == 9
+    assert completed_run["duration_seconds"] == 1.25
+
+
+def test_fpl_storage_run_lifecycle_failed(tmp_path: Path):
+    """Verify failing a run captures error message and failed status."""
+    storage = FPLStorage(db_path=tmp_path / "run_fail.db")
+    run_id = "fpl_failed_01"
+    storage.create_run(run_id=run_id, source="https://fail.api")
+
+    storage.fail_run(
+        run_id=run_id,
+        error_message="HTTPClient: Connection timeout after 3 retries",
+        records_extracted=0,
+        duration_seconds=5.0,
+    )
+
+    latest = storage.get_latest_run()
+    assert latest is not None
+    assert latest["status"] == "failed"
+    assert "timeout" in latest["error_message"]
+    assert latest["records_persisted"] == 0
+
+
+def test_fpl_snapshots_multiple_runs_for_same_player_immutable(tmp_path: Path):
+    """Verify that multiple snapshots for the same player across runs are preserved immutably."""
+    storage = FPLStorage(db_path=tmp_path / "history_immutable.db")
+
+    p_run1 = FPLPlayer(
+        id=10, first_name="Cole", second_name="Palmer", web_name="Palmer", team="CHE", position="MID",
+        price=10.5, total_points=80, event_points=8, selected_by_percent=45.0,
+    )
+    p_run2 = FPLPlayer(
+        id=10, first_name="Cole", second_name="Palmer", web_name="Palmer", team="CHE", position="MID",
+        price=10.8, total_points=95, event_points=15, selected_by_percent=52.0,
+    )
+
+    # Run 1
+    storage.save_current_and_snapshots(run_id="run_1", players=[p_run1])
+    assert storage.count_players() == 1
+    assert storage.count_snapshots() == 1
+
+    # Run 2
+    storage.save_current_and_snapshots(run_id="run_2", players=[p_run2])
+    # Current table is updated to latest (price 10.8, points 95)
+    assert storage.count_players() == 1
+    current = storage.get_player_by_id(10)
+    assert current["price"] == 10.8
+    assert current["total_points"] == 95
+
+    # Historical snapshots table has BOTH snapshots intact
+    assert storage.count_snapshots() == 2
+    history = storage.get_player_history(player_id=10)
+    assert len(history) == 2
+    assert history[0]["run_id"] == "run_1"
+    assert history[0]["price"] == 10.5
+    assert history[0]["total_points"] == 80
+
+    assert history[1]["run_id"] == "run_2"
+    assert history[1]["price"] == 10.8
+    assert history[1]["total_points"] == 95
+
+
+def test_fpl_snapshots_uniqueness_and_idempotency(tmp_path: Path):
+    """Verify that re-saving the exact same (run_id, player_id) does not duplicate rows."""
+    storage = FPLStorage(db_path=tmp_path / "idempotent.db")
+    player = FPLPlayer(
+        id=7, first_name="Bukayo", second_name="Saka", web_name="Saka", team="ARS", position="MID",
+        price=10.0, total_points=60, event_points=5, selected_by_percent=30.0,
+    )
+
+    # First save
+    storage.save_snapshots(run_id="run_same", players=[player])
+    assert storage.count_snapshots(run_id="run_same") == 1
+
+    # Duplicate save with same run_id and player_id
+    storage.save_snapshots(run_id="run_same", players=[player])
+    assert storage.count_snapshots(run_id="run_same") == 1
+
+
+def test_fpl_pipeline_creates_run_and_snapshots_end_to_end(tmp_path: Path):
+    """Verify pipeline execution populates run metadata and snapshots alongside current state."""
+    storage = FPLStorage(db_path=tmp_path / "pipeline_hist.db")
+    mock_scraper = MagicMock(spec=FPLScraper)
+    mock_scraper.save_raw = False
+    mock_scraper.raw_storage = None
+    mock_scraper.scrape.return_value = [
+        {
+            "id": 100, "first_name": "Erling", "second_name": "Haaland", "web_name": "Haaland",
+            "team": "MCI", "position": "FWD", "price": 15.0, "total_points": 110,
+            "selected_by_percent": 65.0,
+        },
+        {
+            # Invalid record (missing required web_name)
+            "id": 101, "first_name": "Bad", "second_name": "Player", "web_name": "   ",
+            "team": "ARS", "position": "DEF", "price": 5.0, "total_points": 10,
+            "selected_by_percent": 1.0,
+        },
+    ]
+
+    pipeline = FPLPipeline(scraper=mock_scraper, storage=storage)
+    result = pipeline.run(endpoint_url="http://mock.endpoint")
+
+    assert result.status == "completed_with_errors"
+    assert result.records_extracted == 2
+    assert result.valid_records == 1
+    assert result.invalid_records == 1
+    assert result.records_persisted == 1
+
+    # Verify run table
+    run_record = storage.get_latest_run()
+    assert run_record is not None
+    assert run_record["run_id"] == result.run_id
+    assert run_record["status"] == "completed_with_errors"
+    assert run_record["records_valid"] == 1
+    assert run_record["records_invalid"] == 1
+
+    # Verify snapshot table
+    snapshots = storage.get_snapshot(run_id=result.run_id)
+    assert len(snapshots) == 1
+    assert snapshots[0]["player_id"] == 100
+    assert snapshots[0]["web_name"] == "Haaland"
+

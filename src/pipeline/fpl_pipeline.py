@@ -16,6 +16,9 @@ from src.storage.raw_storage import RawStorage
 logger = logging.getLogger(__name__)
 
 
+from datetime import datetime, timezone
+import time
+
 @dataclass(frozen=True)
 class FPLPipelineResult:
     """Summary metrics of an FPL pipeline execution run."""
@@ -25,7 +28,9 @@ class FPLPipelineResult:
     invalid_records: int
     records_persisted: int
     db_path: Path
-    run_id: str | None
+    run_id: str
+    status: str
+    duration_seconds: float
 
 
 class FPLPipeline:
@@ -88,43 +93,74 @@ class FPLPipeline:
         Returns:
             FPLPipelineResult with execution metrics.
         """
-        logger.info("Starting FPL pipeline execution from %s", endpoint_url)
+        start_time = time.monotonic()
+        now_utc = datetime.now(timezone.utc)
+        run_id = f"fpl_{now_utc.strftime('%Y%m%d_%H%M%S')}"
 
-        # 1. Extraction Layer
-        self.scraper.save_raw = save_raw
-        if save_raw and not self.scraper.raw_storage:
-            self.scraper.raw_storage = RawStorage()
+        logger.info("Starting FPL pipeline execution run %s from %s", run_id, endpoint_url)
 
-        run_id = (
-            self.scraper.raw_storage.generate_run_id(prefix="fpl")
-            if save_raw and self.scraper.raw_storage
-            else None
-        )
+        # 1. Initialize run metadata record
+        self.storage.create_run(run_id=run_id, source=endpoint_url, scraped_at=now_utc.isoformat())
 
-        extracted_records = self.scraper.scrape(url=endpoint_url, run_id=run_id)
+        try:
+            # 2. Extraction Layer
+            self.scraper.save_raw = save_raw
+            if save_raw and not self.scraper.raw_storage:
+                self.scraper.raw_storage = RawStorage()
 
-        # 2. Validation Layer
-        valid_players, invalid_records = self.validate_records(extracted_records)
+            extracted_records = self.scraper.scrape(url=endpoint_url, run_id=run_id)
 
-        # 3. Persistence Layer
-        persisted_count = self.storage.insert_players(valid_players)
+            # 3. Validation Layer
+            valid_players, invalid_records = self.validate_records(extracted_records)
 
-        logger.info(
-            "FPL pipeline completed: %d extracted, %d valid, %d invalid, %d persisted",
-            len(extracted_records),
-            len(valid_players),
-            len(invalid_records),
-            persisted_count,
-        )
+            # 4. Persistence Layer (Atomic current-state upsert + historical snapshot insert)
+            persisted_count = self.storage.save_current_and_snapshots(run_id=run_id, players=valid_players)
 
-        return FPLPipelineResult(
-            records_extracted=len(extracted_records),
-            valid_records=len(valid_players),
-            invalid_records=len(invalid_records),
-            records_persisted=persisted_count,
-            db_path=self.storage.db_path,
-            run_id=run_id,
-        )
+            duration = round(time.monotonic() - start_time, 2)
+            run_status = "completed_with_errors" if invalid_records else "completed"
+
+            # 5. Complete run metadata
+            self.storage.complete_run(
+                run_id=run_id,
+                records_extracted=len(extracted_records),
+                records_valid=len(valid_players),
+                records_invalid=len(invalid_records),
+                records_persisted=persisted_count,
+                duration_seconds=duration,
+                status=run_status,
+            )
+
+            logger.info(
+                "FPL pipeline run %s completed: %d extracted, %d valid, %d invalid, %d persisted (duration: %.2fs)",
+                run_id,
+                len(extracted_records),
+                len(valid_players),
+                len(invalid_records),
+                persisted_count,
+                duration,
+            )
+
+            return FPLPipelineResult(
+                records_extracted=len(extracted_records),
+                valid_records=len(valid_players),
+                invalid_records=len(invalid_records),
+                records_persisted=persisted_count,
+                db_path=self.storage.db_path,
+                run_id=run_id,
+                status=run_status,
+                duration_seconds=duration,
+            )
+
+        except Exception as exc:
+            duration = round(time.monotonic() - start_time, 2)
+            error_msg = f"{type(exc).__name__}: {str(exc)}"
+            self.storage.fail_run(
+                run_id=run_id,
+                error_message=error_msg,
+                duration_seconds=duration,
+            )
+            logger.error("FPL pipeline run %s failed: %s", run_id, error_msg, exc_info=True)
+            raise
 
 
 def run_fpl_pipeline_cli() -> None:
@@ -166,15 +202,17 @@ def run_fpl_pipeline_cli() -> None:
     print("\n" + "=" * 60)
     print("Fantasy Premier League (FPL) Pipeline Execution Summary")
     print("=" * 60)
+    print(f"Run ID:              {result.run_id}")
+    print(f"Execution Status:    {result.status}")
+    print(f"Duration:            {result.duration_seconds:.2f}s")
     print(f"Source Endpoint:     {args.url}")
     print(f"Records Extracted:   {result.records_extracted}")
     print(f"Valid Records:       {result.valid_records}")
     print(f"Invalid Records:     {result.invalid_records}")
-    print(f"Records Persisted:   {result.records_persisted}")
+    print(f"Records Persisted:   {result.records_persisted} (current & snapshot)")
     print(f"Target Database:     {result.db_path}")
-    if result.run_id:
-        print(f"Raw Data Run ID:     {result.run_id}")
-        print(f"Storage Directory:   data/raw/fpl/{result.run_id}/")
+    if args.save_raw:
+        print(f"Raw Storage Dir:     data/raw/fpl/{result.run_id}/")
     print("=" * 60 + "\n")
 
 
