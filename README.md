@@ -73,18 +73,56 @@ Web Source (HTML / API)
 
 - [x] **Phase 1: Project Skeleton & Repository Setup**
   - Project directory conventions, documentation, environment configuration, and entry point.
-- [ ] **Phase 2: Target Analysis & Data Contract**
+- [x] **Phase 2: Reusable Scraping Foundation**
+  - Resilient HTTP client with retry logic, custom exception taxonomy, BeautifulSoup parsing helper, and abstract base scraper lifecycle.
+- [ ] **Phase 3: Target Analysis & Data Contract**
   - Defining target schemas, extraction scope, and storage models.
-- [ ] **Phase 3: Extraction Layer**
-  - Modular scraper implementation with error handling, session management, and rate limiting.
-- [ ] **Phase 4: Transformation, Cleaning & Validation**
+- [ ] **Phase 4: Extraction Implementation**
+  - Concrete scrapers utilizing the foundation layer with rate limiting and robust error handling.
+- [ ] **Phase 5: Transformation, Cleaning & Validation**
   - Data normalization, type checking, anomaly detection, and SQLite persistence.
-- [ ] **Phase 5: Automated Reporting (Excel & PDF)**
+- [ ] **Phase 6: Automated Reporting (Excel & PDF)**
   - Client-ready styled Excel spreadsheets and executive summary PDFs.
-- [ ] **Phase 6: Web Dashboard Integration**
+- [ ] **Phase 7: Web Dashboard Integration**
   - Lightweight visualization layer connected to the pipeline outputs.
-- [ ] **Phase 7: Automation & CI/CD Pipeline**
+- [ ] **Phase 8: Automation & CI/CD Pipeline**
   - GitHub Actions workflow for scheduled headless execution and artifact archiving.
+
+---
+
+## 🏗️ Scraping Foundation Architecture
+
+The scraping layer is designed around clean separation of concerns and decoupled responsibilities:
+
+```
+┌────────────────────────────────────────────────────────┐
+│                      HTTPClient                        │
+│   • Configurable timeouts & custom User-Agent          │
+│   • Transient retry handling (429, 5xx, timeouts)      │
+│   • Structured standard-library logging                │
+└──────────────────────────┬─────────────────────────────┘
+                           │ fetch(url) -> HTML
+                           ▼
+┌────────────────────────────────────────────────────────┐
+│                      BaseScraper                       │
+│   • Enforces standard pipeline lifecycle:              │
+│     fetch (URL) -> parse (HTML) -> extract (Data)      │
+│   • Completely decoupled from specific websites        │
+└─────────────┬────────────────────────────┬─────────────┘
+              │                            │
+              ▼                            ▼
+┌───────────────────────────┐ ┌──────────────────────────┐
+│        HTML Parser        │ │ Concrete Scraper Impl    │
+│  (BeautifulSoup / DOM)    │ │ (e.g. FPLScraper)        │
+│  • Tag extraction helper  │ │ • Domain extraction      │
+│  • Typed error handling   │ │ • Yields structured data │
+└───────────────────────────┘ └──────────────────────────┘
+```
+
+- **[HTTPClient](file:///src/scraper/http_client.py)**: Manages network communication, exponential backoff for transient issues (`429`, `5xx`, connection dropped), and standard logging.
+- **[BaseScraper](file:///src/scraper/base_scraper.py)**: Orchestrates the `fetch -> parse -> extract` template method. Concrete scrapers only need to implement the domain-specific `extract(soup)` method.
+- **[HTML Parser](file:///src/scraper/parser.py)**: Encapsulates BeautifulSoup interaction and isolates parsing exceptions.
+- **[Exceptions](file:///src/scraper/exceptions.py)**: Provides a clean hierarchy (`ScraperError`, `RequestError`, `ParsingError`) avoiding untyped or silent failures.
 
 ---
 

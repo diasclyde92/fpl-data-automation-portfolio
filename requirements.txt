@@ -1,2 +1,3 @@
-# Core dependencies will be added incrementally in upcoming phases (e.g., requests, beautifulsoup4, pandas).
-# No external runtime libraries are required for the initial project skeleton.
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+pytest>=8.0.0
