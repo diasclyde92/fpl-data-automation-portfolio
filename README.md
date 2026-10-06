@@ -83,13 +83,15 @@ Web Source (HTML / API)
   - Pydantic domain models, data validation/normalization, duplicate upsert handling, and relational persistence with SQLite.
 - [x] **Phase 6: Relational Data Analytics (Pandas)**
   - Decoupled analytics layer reading SQLite records into structured DataFrames, computing statistics, ratings distributions, rankings, and data quality diagnostics.
-- [ ] **Phase 7: Target Analysis & Primary Use Case (FPL)**
+- [x] **Phase 7: Professional Excel Reporting Layer (openpyxl)**
+  - Executive multi-tab `.xlsx` client deliverable with KPI summary, catalog data tables, price distributions, rating charts, and inventory breakdowns.
+- [ ] **Phase 8: Target Analysis & Primary Use Case (FPL)**
   - Concrete domain scraper for FPL statistics, target schemas, and primary data contracts.
-- [ ] **Phase 8: Automated Reporting (Excel & PDF)**
-  - Client-ready styled Excel spreadsheets and executive summary PDFs.
-- [ ] **Phase 9: Web Dashboard Integration**
+- [ ] **Phase 9: Automated PDF Executive Briefing**
+  - Client-ready styled executive summary PDFs.
+- [ ] **Phase 10: Web Dashboard Integration**
   - Lightweight visualization layer connected to the pipeline outputs.
-- [ ] **Phase 10: Automation & CI/CD Pipeline**
+- [ ] **Phase 11: Automation & CI/CD Pipeline**
   - GitHub Actions workflow for scheduled headless execution and artifact archiving.
 
 ---
@@ -173,6 +175,41 @@ python -m src.analytics.book_analytics
 # Run against custom database location
 python -m src.analytics.book_analytics --db-path data/processed/books.db
 ```
+
+---
+
+## 📑 Professional Excel Reporting Layer (Phase 7)
+
+Freelance clients frequently demand polished, spreadsheet deliverables (`.xlsx`) ready for stakeholder presentation rather than raw CSV dumps or command-line logs.
+
+The [`ExcelReport`](file:///src/reporting/excel_report.py) component consumes structured analytics from [`BookAnalytics`](file:///src/analytics/book_analytics.py) and builds an executive, multi-worksheet workbook using `openpyxl`.
+
+### 🗂️ Workbook Structure & Worksheets
+1. **Summary**: Executive dashboard with high-level KPI cards (Total Books, Average Price, Median Price, Min/Max Price, Average Rating), data health diagnostics (empty status, missing attributes, duplicate checks), and top 5 price and rating leaderboards.
+2. **Books Data**: Clean tabular representation of the raw catalog with freeze panes (`A2`), auto-filters (`A1:G41`), currency number formatting (`£#,##0.00`), date/time formatting, and clickable hyperlinks for detail URLs.
+3. **Price Analysis**: Pricing metrics table, top 10 most expensive items, top 10 least expensive items, and an embedded column chart (`openpyxl.chart.BarChart`) comparing prices.
+4. **Rating Analysis**: Rating frequency counts ($1\dots5$ stars), share of total percentage formatting (`0.0%`), and a native rating distribution column chart.
+5. **Availability**: Inventory breakdown table displaying stock status categories, absolute item counts, and percentage shares.
+
+### 🎨 Design & Formatting Highlights
+- **Executive Navy Palette**: Consistent typography (`Segoe UI`), restrained navy headers (`#24426B`), alternating row zebra striping (`#F9FBFC`), and clear borders.
+- **Graceful Empty State**: Handles empty databases cleanly without crashing—generates valid sheets indicating `"EMPTY"` status with headers intact and zero fabricated data.
+- **Decoupled Architecture**: Reporting only handles Excel presentation; zero web requests, SQL queries, or business calculation duplication.
+
+### 💻 Running the Excel Report Generator CLI
+Generate the client deliverable directly:
+
+```bash
+# Generate report from default SQLite DB to reports/exports/books_analytics_report.xlsx
+python -m src.reporting.excel_report
+
+# Custom input DB and output destination
+python -m src.reporting.excel_report \
+    --db-path data/processed/books.db \
+    --output reports/exports/books_analytics_report.xlsx
+```
+
+*(Note: Automated PDF executive summaries and interactive web dashboard visualization will be built in subsequent phases.)*
 
 ---
 
