@@ -85,10 +85,10 @@ Web Source (HTML / API)
   - Decoupled analytics layer reading SQLite records into structured DataFrames, computing statistics, ratings distributions, rankings, and data quality diagnostics.
 - [x] **Phase 7: Professional Excel Reporting Layer (openpyxl)**
   - Executive multi-tab `.xlsx` client deliverable with KPI summary, catalog data tables, price distributions, rating charts, and inventory breakdowns.
-- [ ] **Phase 8: Target Analysis & Primary Use Case (FPL)**
+- [x] **Phase 8: Automated PDF Executive Briefing (ReportLab)**
+  - Multi-page client-ready PDF brief with dynamic narrative insights, KPI scorecard, pricing charts, rating breakdowns, and data governance audit.
+- [ ] **Phase 9: Target Analysis & Primary Use Case (FPL)**
   - Concrete domain scraper for FPL statistics, target schemas, and primary data contracts.
-- [ ] **Phase 9: Automated PDF Executive Briefing**
-  - Client-ready styled executive summary PDFs.
 - [ ] **Phase 10: Web Dashboard Integration**
   - Lightweight visualization layer connected to the pipeline outputs.
 - [ ] **Phase 11: Automation & CI/CD Pipeline**
@@ -209,7 +209,41 @@ python -m src.reporting.excel_report \
     --output reports/exports/books_analytics_report.xlsx
 ```
 
-*(Note: Automated PDF executive summaries and interactive web dashboard visualization will be built in subsequent phases.)*
+---
+
+## 📄 Automated PDF Executive Briefing (Phase 8)
+
+For stakeholders requiring a print-ready or attachable business memorandum, the [`PDFReport`](file:///src/reporting/pdf_report.py) component compiles [`BookAnalytics`](file:///src/analytics/book_analytics.py) metrics into a multi-page PDF briefing using `reportlab` Platypus flowables.
+
+### 📑 Document Sections & Layout
+- **Page 1: Executive Summary & Scorecard**:
+  - Title banner, generation timestamp, and data source metadata.
+  - **Dynamic Narrative Insights**: Context-rich English paragraphs computed on-the-fly from analytics metrics (catalog size, price spreads, dominant ratings, stock allocation percentages).
+  - **KPI Scorecard**: Styled grid detailing Mean Price, Median Price, Range, Average Rating, and total items.
+  - **Quick Highlights Table**: Highlights highest/lowest catalog items and pipeline governance status.
+- **Page 2: Price Valuation & Spectrum Analysis**:
+  - **Visual Price Chart**: Embedded native ReportLab vector graphic (`Drawing` with horizontal bars) comparing top premium book prices.
+  - **Ranked Tables**: Detailed rankings for Top 5 Most Expensive and Top 5 Least Expensive books with automatic title text wrapping.
+- **Page 3: Customer Ratings, Inventory & Governance**:
+  - **Customer Rating Distribution**: Star rating breakdown ($1\dots5$ stars) with counts, percentage shares, and star icons.
+  - **Inventory Allocation Table**: Stock status breakdown with strategic operational interpretations.
+  - **Technical Pipeline Quality & Anomaly Report**: Production health audit confirming zero missing prices, valid ratings, and zero duplicate URLs.
+- **Header & Footer Pagination**: Two-pass canvas (`NumberedCanvas`) dynamically calculating running headers and `"Page X of Y"` footers with confidentiality markers.
+
+### 💻 Running the PDF Report Generator CLI
+Generate the executive PDF report directly:
+
+```bash
+# Generate PDF from default SQLite DB to reports/exports/books_analytics_report.pdf
+python -m src.reporting.pdf_report
+
+# Custom database input and PDF export destination
+python -m src.reporting.pdf_report \
+    --db-path data/processed/books.db \
+    --output reports/exports/books_analytics_report.pdf
+```
+
+*(Note: Interactive web dashboard visualization and automated scheduling via GitHub Actions will follow in subsequent phases.)*
 
 ---
 
