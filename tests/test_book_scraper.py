@@ -1,5 +1,6 @@
 """Unit tests for the BookScraper implementation using mocked HTML fixtures."""
 
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -8,6 +9,7 @@ from bs4 import BeautifulSoup
 
 from src.scraper.book_scraper import BookScraper
 from src.scraper.http_client import HTTPClient
+from src.storage.raw_storage import RawStorage
 
 SAMPLE_BOOKS_HTML = """
 <!DOCTYPE html>
@@ -58,6 +60,36 @@ SAMPLE_BOOKS_HTML = """
 </html>
 """
 
+PAGE_1_HTML = """
+<!DOCTYPE html>
+<html>
+<body>
+    <article class="product_pod">
+        <h3><a href="catalogue/book-1.html" title="Book 1">Book 1</a></h3>
+        <p class="price_color">£10.00</p>
+    </article>
+    <ul class="pager">
+        <li class="next"><a href="catalogue/page-2.html">next</a></li>
+    </ul>
+</body>
+</html>
+"""
+
+PAGE_2_HTML = """
+<!DOCTYPE html>
+<html>
+<body>
+    <article class="product_pod">
+        <h3><a href="catalogue/book-2.html" title="Book 2">Book 2</a></h3>
+        <p class="price_color">£20.00</p>
+    </article>
+    <ul class="pager">
+        <li class="previous"><a href="page-1.html">previous</a></li>
+    </ul>
+</body>
+</html>
+"""
+
 
 @pytest.fixture
 def book_scraper() -> BookScraper:
@@ -100,7 +132,6 @@ def test_extract_missing_optional_fields(book_scraper: BookScraper):
         <h3>
             <a href="catalogue/incomplete-book_1/index.html" title="Incomplete Book">Incomplete Book</a>
         </h3>
-        <!-- Missing star-rating, price_color, availability -->
     </article>
     """
     soup = BeautifulSoup(partial_html, "html.parser")
@@ -119,7 +150,6 @@ def test_extract_malformed_pod_skipped(book_scraper: BookScraper):
     malformed_html = """
     <div>
         <article class="product_pod">
-            <!-- No h3 or anchor -->
             <p class="star-rating One"></p>
         </article>
         <article class="product_pod">
@@ -134,15 +164,116 @@ def test_extract_malformed_pod_skipped(book_scraper: BookScraper):
     assert records[0]["title"] == "Valid Book"
 
 
-def test_scrape_full_workflow_mocked(book_scraper: BookScraper):
-    """Verify the full scrape workflow with a mocked HTTP response."""
+# ---------------------------------------------------------------------------
+# Pagination Tests
+# ---------------------------------------------------------------------------
+
+def test_pagination_single_page_no_next(book_scraper: BookScraper):
+    """Verify scraping terminates cleanly when page has no next link."""
     mock_client = MagicMock(spec=HTTPClient)
     mock_response = MagicMock(spec=requests.Response)
     mock_response.text = SAMPLE_BOOKS_HTML
     mock_client.get.return_value = mock_response
 
     book_scraper.client = mock_client
-    records = book_scraper.scrape("http://books.toscrape.com/")
+    records = book_scraper.scrape("http://books.toscrape.com/", max_pages=5)
 
     assert len(records) == 2
     mock_client.get.assert_called_once_with("http://books.toscrape.com/")
+
+
+def test_pagination_two_pages_traversal(book_scraper: BookScraper):
+    """Verify two-page traversal, extracting items across pages and following next link."""
+    mock_client = MagicMock(spec=HTTPClient)
+    resp1 = MagicMock(spec=requests.Response, text=PAGE_1_HTML)
+    resp2 = MagicMock(spec=requests.Response, text=PAGE_2_HTML)
+    mock_client.get.side_effect = [resp1, resp2]
+
+    book_scraper.client = mock_client
+    records = book_scraper.scrape("http://books.toscrape.com/", max_pages=5)
+
+    assert len(records) == 2
+    assert records[0]["title"] == "Book 1"
+    assert records[1]["title"] == "Book 2"
+    assert mock_client.get.call_count == 2
+    mock_client.get.assert_any_call("http://books.toscrape.com/")
+    mock_client.get.assert_any_call("http://books.toscrape.com/catalogue/page-2.html")
+
+
+def test_pagination_relative_url_normalization(book_scraper: BookScraper):
+    """Verify next page relative URL is normalized correctly into an absolute URL."""
+    soup = BeautifulSoup('<li class="next"><a href="page-3.html">next</a></li>', "html.parser")
+    next_url = book_scraper.get_next_page_url(soup, "http://books.toscrape.com/catalogue/page-2.html")
+    assert next_url == "http://books.toscrape.com/catalogue/page-3.html"
+
+
+def test_pagination_max_page_limit(book_scraper: BookScraper):
+    """Verify pagination stops once max_pages limit is reached even if next page exists."""
+    mock_client = MagicMock(spec=HTTPClient)
+    resp1 = MagicMock(spec=requests.Response, text=PAGE_1_HTML)
+    mock_client.get.return_value = resp1
+
+    book_scraper.client = mock_client
+    # PAGE_1 has a next link, but max_pages=1 restricts it
+    records = book_scraper.scrape("http://books.toscrape.com/", max_pages=1)
+
+    assert len(records) == 1
+    assert mock_client.get.call_count == 1
+
+
+def test_pagination_missing_or_malformed_next_link(book_scraper: BookScraper):
+    """Verify get_next_page_url returns None when next link is missing or malformed."""
+    soup_empty = BeautifulSoup('<li class="next"></li>', "html.parser")
+    assert book_scraper.get_next_page_url(soup_empty, "http://example.com") is None
+
+    soup_no_href = BeautifulSoup('<li class="next"><a>next</a></li>', "html.parser")
+    assert book_scraper.get_next_page_url(soup_no_href, "http://example.com") is None
+
+
+def test_pagination_loop_protection(book_scraper: BookScraper):
+    """Verify scraper detects cyclic pagination links and breaks immediately."""
+    loop_html = """
+    <article class="product_pod">
+        <h3><a href="book.html" title="Book Loop">Book</a></h3>
+    </article>
+    <li class="next"><a href="http://books.toscrape.com/loop.html">next</a></li>
+    """
+    mock_client = MagicMock(spec=HTTPClient)
+    mock_response = MagicMock(spec=requests.Response, text=loop_html)
+    mock_client.get.return_value = mock_response
+
+    book_scraper.client = mock_client
+    # Page points to itself
+    records = book_scraper.scrape("http://books.toscrape.com/loop.html", max_pages=10)
+
+    # First fetch succeeds, next points to visited URL and breaks loop
+    assert len(records) == 1
+    assert mock_client.get.call_count == 1
+
+
+# ---------------------------------------------------------------------------
+# Scraper + Raw Storage Integration Test (Mocked)
+# ---------------------------------------------------------------------------
+
+def test_scrape_with_raw_storage(tmp_path: Path):
+    """Verify that enabling save_raw saves HTML pages to the configured storage directory."""
+    mock_client = MagicMock(spec=HTTPClient)
+    resp1 = MagicMock(spec=requests.Response, text=PAGE_1_HTML)
+    resp2 = MagicMock(spec=requests.Response, text=PAGE_2_HTML)
+    mock_client.get.side_effect = [resp1, resp2]
+
+    storage = RawStorage(base_dir=tmp_path)
+    scraper = BookScraper(
+        client=mock_client,
+        save_raw=True,
+        raw_storage=storage,
+        max_pages=2,
+    )
+
+    records = scraper.scrape("http://books.toscrape.com/", run_id="test_run_123")
+
+    assert len(records) == 2
+    raw_files = list((tmp_path / "books" / "test_run_123").glob("*.html"))
+    assert len(raw_files) == 2
+    assert (tmp_path / "books" / "test_run_123" / "page_001.html").exists()
+    assert (tmp_path / "books" / "test_run_123" / "page_002.html").exists()

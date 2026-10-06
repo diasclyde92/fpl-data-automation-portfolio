@@ -12,7 +12,7 @@ from src.scraper.book_scraper import BookScraper
 @pytest.mark.integration
 def test_live_scrape_books_toscrape():
     """Verify live extraction against the public books.toscrape.com home page."""
-    scraper = BookScraper()
+    scraper = BookScraper(max_pages=1)
     records = scraper.scrape(BookScraper.DEFAULT_BASE_URL)
 
     # books.toscrape.com displays 20 items per page

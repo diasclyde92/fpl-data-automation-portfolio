@@ -156,17 +156,66 @@ Each item is normalized into a structured dictionary containing 5 fields:
 ```
 
 ### 💻 How to Run It
-Run the CLI demo runner to fetch the live source, parse records, and inspect a console summary:
+Run the CLI runner to scrape the catalog, control pagination limits, and optionally preserve raw HTML:
+
 ```bash
+# Basic run (1 page, in-memory)
 python -m src.scraper.book_scraper
+
+# Traverse 3 pages and preserve raw HTML responses
+python -m src.scraper.book_scraper --max-pages 3 --save-raw --verbose
+```
+
+### 🔄 Pagination & Raw Data Architecture
+
+```
+                  Target Website (HTML)
+                           │
+                           ▼
+                      HTTPClient (retries, timeouts, headers)
+                           │
+                           ▼
+                      BookScraper (traverses pagination controls)
+                     ┌─────┴────────────────────────┐
+                     ▼                              ▼
+             Structured Records             Raw HTML Responses
+            (clean in-memory dicts)                 │
+                                                    ▼
+                                          [ RawStorage Component ]
+                                                    │
+                                                    ▼
+                                          data/raw/books/<run_id>/
+                                              ├── page_001.html
+                                              ├── page_002.html
+                                              └── ...
+```
+
+### 💾 Why Preserve Raw Data?
+In enterprise web-scraping and ETL pipelines, raw HTML preservation provides three critical business safeguards:
+1. **Auditability**: Verifies exactly what was visible at scrape time if a client questions a price or record.
+2. **Reprocessing Without Re-scraping**: Allows modifying downstream parsers or extracting additional fields without incurring additional network traffic or hitting target rate limits.
+3. **Debugging Edge Cases**: Provides exact HTML fixtures when upstream website structure drifts or triggers parsing errors.
+
+### 📁 Raw Data Directory Structure
+Saved under `data/raw/<dataset>/<run_id>/` (tracked via `.gitkeep` and excluded in `.gitignore`):
+```text
+data/raw/
+└── books/
+    └── books_20261006_041630/
+        ├── page_001.html
+        └── page_002.html
 ```
 
 ### 🧪 Testing Approach
-- **Deterministic Unit Tests**: [`tests/test_book_scraper.py`](file:///tests/test_book_scraper.py) tests multi-record parsing, numeric conversion, URL normalization, and handling of missing or malformed tags using offline HTML fixtures without network dependency.
-- **Isolated Integration Test**: [`tests/test_integration_scraper.py`](file:///tests/test_integration_scraper.py) executes against the live public endpoint under the `-m integration` marker, keeping default CI/local runs fast and deterministic.
+- **Deterministic Unit Tests**: 
+  - [`tests/test_book_scraper.py`](file:///tests/test_book_scraper.py): Multi-record parsing, relative URL normalization, 2-page pagination traversal, max page limits, malformed/missing next links, cyclic pagination loop detection, and raw storage integration with `tmp_path`.
+  - [`tests/test_raw_storage.py`](file:///tests/test_raw_storage.py): Run ID timestamp generation, directory creation, UTF-8 multi-page saving, and filesystem error handling.
+  - [`tests/test_scraper.py`](file:///tests/test_scraper.py): HTTP client timeouts, retries, and base scraper contracts.
+- **Isolated Integration Test**: [`tests/test_integration_scraper.py`](file:///tests/test_integration_scraper.py) tests real extraction against the live site (`-m integration`).
 
 ### ⚠️ Limitations & Notes
-- Scrapes the initial page (20 records) in memory without pagination or database persistence (persisting raw data and data transformations will be introduced in subsequent phases).
+- Raw HTML is saved as individual UTF-8 files per page.
+- Database storage and data transformation/validation (e.g. SQLite and pandas) will be introduced in subsequent phases.
 
 ---
 
