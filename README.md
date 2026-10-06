@@ -75,8 +75,10 @@ Web Source (HTML / API)
   - Project directory conventions, documentation, environment configuration, and entry point.
 - [x] **Phase 2: Reusable Scraping Foundation**
   - Resilient HTTP client with retry logic, custom exception taxonomy, BeautifulSoup parsing helper, and abstract base scraper lifecycle.
-- [ ] **Phase 3: Target Analysis & Data Contract**
-  - Defining target schemas, extraction scope, and storage models.
+- [x] **Phase 3: First Concrete Scraper Implementation**
+  - Concrete scraper demonstration (`BookScraper`) against a public test target, value normalization, error tolerance, CLI execution, and unit/integration testing.
+- [ ] **Phase 4: Target Analysis & Data Contract (FPL)**
+  - Defining target schemas, extraction scope, and storage models for the primary use case.
 - [ ] **Phase 4: Extraction Implementation**
   - Concrete scrapers utilizing the foundation layer with rate limiting and robust error handling.
 - [ ] **Phase 5: Transformation, Cleaning & Validation**
@@ -123,6 +125,48 @@ The scraping layer is designed around clean separation of concerns and decoupled
 - **[BaseScraper](file:///src/scraper/base_scraper.py)**: Orchestrates the `fetch -> parse -> extract` template method. Concrete scrapers only need to implement the domain-specific `extract(soup)` method.
 - **[HTML Parser](file:///src/scraper/parser.py)**: Encapsulates BeautifulSoup interaction and isolates parsing exceptions.
 - **[Exceptions](file:///src/scraper/exceptions.py)**: Provides a clean hierarchy (`ScraperError`, `RequestError`, `ParsingError`) avoiding untyped or silent failures.
+
+---
+
+## 📖 First Concrete Scraper: BookScraper
+
+To prove the extensibility of `BaseScraper` and the reliability of `HTTPClient`, a concrete implementation—[`BookScraper`](file:///src/scraper/book_scraper.py)—was developed against a stable, public sandbox.
+
+### 🌐 Source Website
+- **Target**: [Books to Scrape](http://books.toscrape.com/)
+- **Rationale**: An established, freely accessible web-scraping sandbox specifically maintained for testing extraction pipelines. It requires no authentication or bypass mechanisms and permits respectful automated inspection.
+
+### 🔍 Data Fields Extracted
+Each item is normalized into a structured dictionary containing 5 fields:
+1. `title` (`str`): Full unclipped book title extracted from the link tag.
+2. `price` (`float | None`): Parsed numerical price in GBP (stripped of currency symbols).
+3. `rating` (`int | None`): Mapped integer rating on a scale from 1 to 5.
+4. `availability` (`str`): Standardized whitespace-clean stock status (e.g. `"In stock"`).
+5. `detail_url` (`str`): Fully qualified, absolute URL to the product's detail page.
+
+### 📦 Example Output Structure
+```json
+{
+  "title": "A Light in the Attic",
+  "price": 51.77,
+  "rating": 3,
+  "availability": "In stock",
+  "detail_url": "http://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html"
+}
+```
+
+### 💻 How to Run It
+Run the CLI demo runner to fetch the live source, parse records, and inspect a console summary:
+```bash
+python -m src.scraper.book_scraper
+```
+
+### 🧪 Testing Approach
+- **Deterministic Unit Tests**: [`tests/test_book_scraper.py`](file:///tests/test_book_scraper.py) tests multi-record parsing, numeric conversion, URL normalization, and handling of missing or malformed tags using offline HTML fixtures without network dependency.
+- **Isolated Integration Test**: [`tests/test_integration_scraper.py`](file:///tests/test_integration_scraper.py) executes against the live public endpoint under the `-m integration` marker, keeping default CI/local runs fast and deterministic.
+
+### ⚠️ Limitations & Notes
+- Scrapes the initial page (20 records) in memory without pagination or database persistence (persisting raw data and data transformations will be introduced in subsequent phases).
 
 ---
 
