@@ -89,8 +89,8 @@ Web Source (HTML / API)
   - Multi-page client-ready PDF brief with dynamic narrative insights, KPI scorecard, pricing charts, rating breakdowns, and data governance audit.
 - [x] **Phase 9: Target Analysis & Primary Use Case (FPL)**
   - Concrete domain pipeline for Fantasy Premier League: official API extraction, Pydantic data modeling, SQLite relational persistence, and Pandas analytics.
-- [ ] **Phase 10: Web Dashboard Integration**
-  - Lightweight visualization layer connected to the pipeline outputs.
+- [x] **Phase 10: Web Dashboard Integration (Streamlit)**
+  - Interactive multi-tab web dashboard consuming FPLAnalytics: KPI scorecard, top player leaderboards, value analysis scatter plot, team/position distributions, player card explorer, and technical data quality audit.
 - [ ] **Phase 11: Automation & CI/CD Pipeline**
   - GitHub Actions workflow for scheduled headless execution and artifact archiving.
 
@@ -189,6 +189,52 @@ python -m src.analytics.fpl_analytics
 # Run analytics with custom database path
 python -m src.analytics.fpl_analytics --db-path data/processed/fpl.db
 ```
+
+---
+
+## 🖥️ Interactive Web Dashboard (Streamlit - Phase 10)
+
+The [`FPL Dashboard`](file:///src/dashboard/fpl_dashboard.py) provides a web-based business and sports analytics application consuming [`FPLAnalytics`](file:///src/analytics/fpl_analytics.py) and SQLite persistence without embedding raw SQL or duplicating metric calculations.
+
+### 🏛️ Dashboard Data Flow & Architecture
+```
+FPL SQLite Database (data/processed/fpl.db)
+       │
+       ▼
+[ FPLStorage ] (connection & schema lifecycle)
+       │
+       ▼
+[ FPLAnalytics ] (vectorized pandas aggregations & quality audit)
+       │
+       ▼
+[ Dashboard Service Helpers ] (filtering criteria & player cards)
+       │
+       ▼
+[ Streamlit Web Application ] (reactive UI, cached data bundle)
+```
+
+### 🌟 Key Dashboard Features
+1. **Executive KPI Scorecard**: Total Players, Average Price (£m), Total Points, Average Points, Highest Points, Average Ownership (%).
+2. **Interactive Filters**: Dynamic sidebar filtering by Position, Club/Team, Availability Status, Price Slider, Minimum Ownership (%), and Minimum Minutes Played.
+3. **Top Player Leaderboards**: Tabbed views for Total Points, Value (Points per Million), Current Form, Goals Scored, and Assists, with configurable display depth (Top 5, 10, 20).
+4. **Value Efficiency Analysis**:
+   - Interactive scatter plot mapping **Player Price vs Total Points** with position coloring and value scaling.
+   - Ranked table of top value assets providing maximum points per million budget spend.
+5. **Team & Position Performance**: Bar charts and drill-down tables detailing aggregate points and average prices by club and role.
+6. **Individual Player Explorer**: Interactive dropdown selector displaying detailed statistical scorecards (Form, GW Points, Goals, Assists, Clean Sheets, Minutes, Bonus).
+7. **Data Quality & Technical Status**: Secondary expander monitoring database path, last scrape timestamp, dataset health, and automated null/duplicate validation checks.
+8. **Graceful Empty & Error States**: Detects missing or empty databases cleanly with instructions to run the extraction pipeline rather than throwing raw Python stack traces.
+
+### 🚀 Launching the Dashboard Locally
+```bash
+# 1. Ensure the FPL pipeline has extracted and stored records
+python -m src.pipeline.fpl_pipeline --save-raw
+
+# 2. Launch the Streamlit application
+streamlit run src/dashboard/fpl_dashboard.py
+```
+
+*(Note: Scheduled automation via GitHub Actions and historical tracking snapshots are planned for subsequent phases.)*
 
 ---
 

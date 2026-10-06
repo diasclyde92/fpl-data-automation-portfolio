@@ -46,6 +46,9 @@ class FPLSummaryStats:
     total_goals_scored: int
     total_assists_provided: int
     average_points: float | None
+    total_points: int = 0
+    highest_points: int | None = None
+    average_ownership: float | None = None
 
 
 @dataclass(frozen=True)
@@ -155,17 +158,24 @@ class FPLAnalytics:
                 total_goals_scored=0,
                 total_assists_provided=0,
                 average_points=None,
+                total_points=0,
+                highest_points=None,
+                average_ownership=None,
             )
 
         total_players = len(df)
         prices = df["price"].dropna()
         points = df["total_points"].dropna()
+        ownership = df["selected_by_percent"].dropna() if "selected_by_percent" in df.columns else pd.Series(dtype=float)
 
         avg_price = round(float(prices.mean()), 2) if not prices.empty else None
         med_price = round(float(prices.median()), 2) if not prices.empty else None
         min_price = round(float(prices.min()), 2) if not prices.empty else None
         max_price = round(float(prices.max()), 2) if not prices.empty else None
+        tot_points = int(points.sum()) if not points.empty else 0
         avg_points = round(float(points.mean()), 2) if not points.empty else None
+        highest_points = int(points.max()) if not points.empty else None
+        avg_ownership = round(float(ownership.mean()), 2) if not ownership.empty else None
         total_goals = int(df["goals"].sum())
         total_assists = int(df["assists"].sum())
 
@@ -178,6 +188,9 @@ class FPLAnalytics:
             total_goals_scored=total_goals,
             total_assists_provided=total_assists,
             average_points=avg_points,
+            total_points=tot_points,
+            highest_points=highest_points,
+            average_ownership=avg_ownership,
         )
 
     def get_top_by_column(
@@ -229,6 +242,29 @@ class FPLAnalytics:
         counts = df["position"].value_counts()
         return {str(pos): int(cnt) for pos, cnt in counts.items()}
 
+    def get_position_summary(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Compute aggregated metrics by position: player count, total points, avg points, avg price.
+
+        Args:
+            df: Players DataFrame.
+
+        Returns:
+            pd.DataFrame indexed by position with summary columns.
+        """
+        cols = ["player_count", "total_points", "average_points", "average_price"]
+        if df.empty:
+            return pd.DataFrame(columns=cols)
+
+        grouped = df.groupby("position").agg(
+            player_count=("id", "count"),
+            total_points=("total_points", "sum"),
+            average_points=("total_points", "mean"),
+            average_price=("price", "mean"),
+        )
+        grouped["average_points"] = grouped["average_points"].round(2)
+        grouped["average_price"] = grouped["average_price"].round(2)
+        return grouped.sort_values(by="total_points", ascending=False)
+
     def get_team_distribution(self, df: pd.DataFrame) -> dict[str, int]:
         """Compute counts of players by team.
 
@@ -242,6 +278,27 @@ class FPLAnalytics:
             return {}
         counts = df["team"].value_counts().sort_index()
         return {str(team): int(cnt) for team, cnt in counts.items()}
+
+    def get_team_summary(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Compute aggregated metrics by team: total points, average price, player count.
+
+        Args:
+            df: Players DataFrame.
+
+        Returns:
+            pd.DataFrame indexed by team with summary columns.
+        """
+        cols = ["total_points", "average_price", "player_count"]
+        if df.empty:
+            return pd.DataFrame(columns=cols)
+
+        grouped = df.groupby("team").agg(
+            total_points=("total_points", "sum"),
+            average_price=("price", "mean"),
+            player_count=("id", "count"),
+        )
+        grouped["average_price"] = grouped["average_price"].round(2)
+        return grouped.sort_values(by="total_points", ascending=False)
 
     def get_points_by_position(self, df: pd.DataFrame) -> dict[str, int]:
         """Compute aggregate total points accumulated by position.
