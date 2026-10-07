@@ -159,6 +159,12 @@ The **Historical Trends** view enables longitudinal comparison across discrete p
 
 *(Note: In development and testing environments where pipeline runs are executed in rapid succession, historical deltas reflect identical or near-identical values. The dashboard capabilities, comparison selectors, and delta calculation formulas are fully verified and operational.)*
 
+### GitHub Pages Portfolio Landing Page
+In addition to the interactive local Streamlit application, the repository includes a static, responsive GitHub Pages portfolio showcase served from `docs/`:
+- **Static Presentation Layer**: Lives under `docs/index.html` and `docs/style.css`.
+- **Purpose**: Provides a lightweight, accessible web overview designed for clients, recruiters, and reviewers to inspect the pipeline architecture, screenshots, capabilities, and proof metrics without launching Python services.
+- **Independence**: The landing page is completely decoupled from the runtime Streamlit application.
+
 ---
 
 ## Automated Reporting

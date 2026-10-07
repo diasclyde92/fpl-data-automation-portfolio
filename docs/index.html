@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FPL Data Automation &amp; Analytics Pipeline | Data Engineering Portfolio</title>
+  <meta name="description" content="An end-to-end Python data engineering project that extracts, validates, stores, analyzes, visualizes, and automates real-world data workflows.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Site Navigation -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="brand">FPL <span>Data Pipeline</span></div>
+      <nav aria-label="Main Navigation">
+        <ul class="nav-links">
+          <li><a href="#pipelines">Pipelines</a></li>
+          <li><a href="#capabilities">Capabilities</a></li>
+          <li><a href="#architecture">Architecture</a></li>
+          <li><a href="#dashboard">Dashboard</a></li>
+          <li><a href="#reporting">Reports</a></li>
+          <li><a href="#automation">Automation</a></li>
+          <li><a href="https://github.com/diasclyde92/fpl-data-automation-portfolio" class="nav-btn" target="_blank" rel="noopener noreferrer">GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <header class="hero">
+    <div class="container">
+      <span class="hero-tag">Portfolio Showcase</span>
+      <h1>FPL Data Automation &amp; Analytics Pipeline</h1>
+      <p class="subtitle">An end-to-end Python data engineering project that extracts, validates, stores, analyzes, visualizes, and automates real-world data workflows.</p>
+      <div class="hero-actions">
+        <a href="https://github.com/diasclyde92/fpl-data-automation-portfolio" class="btn btn-primary" target="_blank" rel="noopener noreferrer">View on GitHub</a>
+        <a href="#architecture" class="btn btn-secondary">Explore the Pipeline</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Project Summary & Complementary Pipelines -->
+    <section id="pipelines">
+      <div class="container">
+        <div class="section-header">
+          <h2>End-to-End Engineering Lifecycle</h2>
+          <p>Demonstrating how external web and API sources progress through validation and storage into actionable business deliverables.</p>
+        </div>
+
+        <div class="summary-flow">
+          <p><strong>Integrated Data Lifecycle:</strong></p>
+          <div class="flow-steps">
+            <span class="flow-step">Data Extraction</span>
+            <span class="flow-arrow">&rarr;</span>
+            <span class="flow-step">Validation</span>
+            <span class="flow-arrow">&rarr;</span>
+            <span class="flow-step">Storage</span>
+            <span class="flow-arrow">&rarr;</span>
+            <span class="flow-step">Analytics</span>
+            <span class="flow-arrow">&rarr;</span>
+            <span class="flow-step">Reporting</span>
+            <span class="flow-arrow">&rarr;</span>
+            <span class="flow-step">Dashboarding</span>
+            <span class="flow-arrow">&rarr;</span>
+            <span class="flow-step">Historical Tracking</span>
+            <span class="flow-arrow">&rarr;</span>
+            <span class="flow-step">Scheduled Automation</span>
+          </div>
+        </div>
+
+        <div class="two-pipelines-grid">
+          <div class="pipeline-card">
+            <span class="pipeline-badge badge-books">Controlled Scraper</span>
+            <h3>Books-to-Scrape Pipeline</h3>
+            <p>A controlled web-scraping environment showcasing resilient crawling, pagination controls, and automated document generation.</p>
+            <ul class="pipeline-features">
+              <li>Multi-page HTML scraping with loop and cycle protection</li>
+              <li>Raw HTML preservation on disk under timestamped run IDs</li>
+              <li>Pydantic v2 schema validation isolating non-conforming items</li>
+              <li>Relational persistence with SQLite atomic upserts</li>
+              <li>Automated multi-sheet Excel deliverables and PDF executive briefs</li>
+            </ul>
+          </div>
+
+          <div class="pipeline-card">
+            <span class="pipeline-badge badge-fpl">Dynamic Real-World API</span>
+            <h3>Fantasy Premier League Pipeline</h3>
+            <p>A real-world sports data pipeline monitoring dynamic player prices, ownership rates, and longitudinal momentum across 20 clubs.</p>
+            <ul class="pipeline-features">
+              <li>Direct REST ingestion from official FPL bootstrap API endpoint</li>
+              <li>Dual persistence: live state table plus append-only historical snapshots</li>
+              <li>Run-to-run delta calculation engine tracking market movements</li>
+              <li>Interactive Streamlit dashboard presenting current &amp; historical views</li>
+              <li>Scheduled GitHub Actions workflow maintaining state across runs</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Capabilities Cards -->
+    <section id="capabilities">
+      <div class="container">
+        <div class="section-header">
+          <h2>Core Capabilities</h2>
+          <p>Engineered with modular components enforcing strict separation of concerns.</p>
+        </div>
+
+        <div class="cards-grid-4">
+          <div class="cap-card">
+            <div class="cap-icon">🌐</div>
+            <h3>Data Extraction</h3>
+            <ul>
+              <li>Reusable HTTP client</li>
+              <li>Exponential retries &amp; timeouts</li>
+              <li>Pagination loop protection</li>
+              <li>HTML &amp; API payload parsing</li>
+              <li>Raw payload capture staging</li>
+            </ul>
+          </div>
+
+          <div class="cap-card">
+            <div class="cap-icon">🛡️</div>
+            <h3>Data Quality</h3>
+            <ul>
+              <li>Pydantic v2 schema models</li>
+              <li>Invalid record isolation</li>
+              <li>SQLite constraint enforcement</li>
+              <li>Duplicate upsert protection</li>
+              <li>Historical snapshot integrity checks</li>
+            </ul>
+          </div>
+
+          <div class="cap-card">
+            <div class="cap-icon">📊</div>
+            <h3>Analytics &amp; Reporting</h3>
+            <ul>
+              <li>Vectorized Pandas engine</li>
+              <li>Multi-tab Excel workbooks</li>
+              <li>Publication-grade PDF briefs</li>
+              <li>Streamlit web application</li>
+              <li>Historical trend &amp; delta analysis</li>
+            </ul>
+          </div>
+
+          <div class="cap-card">
+            <div class="cap-icon">⚙️</div>
+            <h3>Automation</h3>
+            <ul>
+              <li>GitHub Actions workflow</li>
+              <li>Scheduled daily cron runs</li>
+              <li>Manual workflow dispatch</li>
+              <li>Cross-run database restoration</li>
+              <li>Historical snapshot accumulation</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Architecture Section -->
+    <section id="architecture">
+      <div class="container">
+        <div class="section-header">
+          <h2>System Architecture</h2>
+          <p>Unidirectional data flow separating extraction, validation, persistence, analytics, and presentation.</p>
+        </div>
+
+        <div class="arch-container">
+          <div class="arch-flow">
+            <div class="arch-node">
+              <div class="arch-node-title">External Data Sources</div>
+              <div class="arch-node-sub">Official FPL REST API &amp; Books-to-Scrape Catalog</div>
+            </div>
+
+            <div class="arch-down-arrow">&darr;</div>
+
+            <div class="arch-node">
+              <div class="arch-node-title">HTTP &amp; API Ingestion Layer</div>
+              <div class="arch-node-sub">HTTPClient (timeouts, headers, exponential retries)</div>
+            </div>
+
+            <div class="arch-down-arrow">&darr;</div>
+
+            <div class="arch-node">
+              <div class="arch-node-title">Raw Data Preservation</div>
+              <div class="arch-node-sub">Immutable raw JSON &amp; HTML staged under <code>data/raw/&lt;run_id&gt;/</code></div>
+            </div>
+
+            <div class="arch-down-arrow">&darr;</div>
+
+            <div class="arch-node">
+              <div class="arch-node-title">Parsing &amp; Extraction</div>
+              <div class="arch-node-sub">BaseScraper, FPLScraper, and BookScraper normalizing domain records</div>
+            </div>
+
+            <div class="arch-down-arrow">&darr;</div>
+
+            <div class="arch-node">
+              <div class="arch-node-title">Pydantic Schema Validation</div>
+              <div class="arch-node-sub">Typed domain boundary checks; invalid records isolated and audited</div>
+            </div>
+
+            <div class="arch-down-arrow">&darr;</div>
+
+            <div class="arch-node">
+              <div class="arch-node-title">SQLite Relational Persistence</div>
+              <div class="arch-node-sub">Current state (upserts), pipeline run logs, and immutable historical snapshots</div>
+            </div>
+
+            <div class="arch-down-arrow">&darr;</div>
+
+            <div class="arch-node primary">
+              <div class="arch-node-title">Vectorized Pandas Analytics Layer</div>
+              <div class="arch-node-sub">Core calculation engine: rankings, statistics, and longitudinal deltas</div>
+            </div>
+
+            <div class="arch-down-arrow">&darr;</div>
+
+            <div class="arch-split-row">
+              <div class="arch-split-node">
+                <strong>Excel Reporting</strong>
+                <span>openpyxl multi-tab workbooks with charts</span>
+              </div>
+              <div class="arch-split-node">
+                <strong>PDF Reporting</strong>
+                <span>ReportLab executive briefing briefs</span>
+              </div>
+              <div class="arch-split-node">
+                <strong>Web Dashboard</strong>
+                <span>Streamlit current &amp; historical explorer</span>
+              </div>
+              <div class="arch-split-node">
+                <strong>Historical Trends</strong>
+                <span>Longitudinal deltas &amp; momentum tracking</span>
+              </div>
+            </div>
+
+            <div class="arch-down-arrow">&darr;</div>
+
+            <div class="arch-node">
+              <div class="arch-node-title">GitHub Actions Automation</div>
+              <div class="arch-node-sub">Scheduled daily runs with cross-run artifact state continuity</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FPL Dashboard Showcase -->
+    <section id="dashboard">
+      <div class="container">
+        <div class="section-header">
+          <h2>Interactive FPL Dashboard</h2>
+          <p>Built with Streamlit, consuming the underlying Pandas analytics layer with zero raw SQL in the UI.</p>
+        </div>
+
+        <div class="showcase-block">
+          <div class="showcase-header">
+            <h3>Current FPL Performance</h3>
+            <p>Explore current player valuations, fixture form, position filters, and budget efficiency.</p>
+          </div>
+          <div class="screenshot-frame">
+            <img src="images/fpl-dashboard.png" alt="Current FPL Performance Dashboard screenshot displaying key performance indicators, player filters, and value scatter plot" loading="lazy">
+          </div>
+          <div class="showcase-details">
+            <div class="detail-pill">
+              <strong>Executive KPI Scorecard</strong>
+              <p>Total players, average price, aggregate points, and league-wide ownership rates.</p>
+            </div>
+            <div class="detail-pill">
+              <strong>Multi-Criteria Filtering</strong>
+              <p>Dynamic filters for club, position, status, price range, and minimum minutes.</p>
+            </div>
+            <div class="detail-pill">
+              <strong>Value Efficiency Plot</strong>
+              <p>Interactive scatter plot identifying over-performing and budget-friendly assets.</p>
+            </div>
+            <div class="detail-pill">
+              <strong>Granular Player Explorer</strong>
+              <p>Individual cards detailing clean sheets, assists, goals, and bonus points.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="showcase-block">
+          <div class="showcase-header">
+            <h3>Historical FPL Trends</h3>
+            <p>Longitudinal analysis across discrete pipeline runs comparing market movements and player progression.</p>
+          </div>
+          <div class="screenshot-frame">
+            <img src="images/fpl-historical-dashboard.png" alt="Historical FPL Trends Dashboard screenshot displaying run-to-run deltas, price movers, and player progression timeline" loading="lazy">
+          </div>
+          <div class="showcase-details">
+            <div class="detail-pill">
+              <strong>Run Comparison Selector</strong>
+              <p>Compare arbitrary historical execution runs or inspect latest vs. previous automated runs.</p>
+            </div>
+            <div class="detail-pill">
+              <strong>Market Movers</strong>
+              <p>Ranked tables for top price rises/drops and percentage-point ownership shifts.</p>
+            </div>
+            <div class="detail-pill">
+              <strong>Player History Timelines</strong>
+              <p>Chronological time-series charts tracing price, points, and ownership trajectories.</p>
+            </div>
+            <div class="detail-pill">
+              <strong>Historical Data Quality</strong>
+              <p>Automated verification verifying snapshot counts, run integrity, and schema health.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Automated Reporting -->
+    <section id="reporting">
+      <div class="container">
+        <div class="section-header">
+          <h2>Automated Business Reporting</h2>
+          <p>Generating polished, client-ready spreadsheet models and executive PDF briefs directly from persisted analytics.</p>
+        </div>
+
+        <div class="showcase-block">
+          <div class="showcase-header">
+            <h3>Excel Analytics Report</h3>
+            <p>Multi-worksheet workbook generated using openpyxl with executive styling, auto-filters, and native charts.</p>
+          </div>
+          <div class="screenshot-frame">
+            <img src="images/excel-report-books.png" alt="Excel Analytics Report screenshot displaying formatted multi-worksheet catalog and pricing summary" loading="lazy">
+          </div>
+          <div class="showcase-details">
+            <div class="detail-pill">
+              <strong>Structured Worksheets</strong>
+              <p>Summary, Books Data, Price Analysis, Rating Analysis, and Availability.</p>
+            </div>
+            <div class="detail-pill">
+              <strong>Executive Design</strong>
+              <p>Navy corporate headers, freeze panes (A2), zebra striping, and currency formatting.</p>
+            </div>
+            <div class="detail-pill">
+              <strong>Embedded Charts</strong>
+              <p>Native column charts illustrating catalog price spreads and star rating allocations.</p>
+            </div>
+            <div class="detail-pill">
+              <strong>Resilient Empty States</strong>
+              <p>Generates clean, descriptive sheets with intact headers even when data is empty.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="showcase-block">
+          <div class="showcase-header">
+            <h3>Executive PDF Report</h3>
+            <p>Publication-quality memorandum generated using ReportLab Platypus flowables with dynamic narrative insights.</p>
+          </div>
+          <div class="screenshot-frame">
+            <img src="images/pdf-report-books.png" alt="Executive PDF Report screenshot displaying multi-page briefing document with scorecards and vector price charts" loading="lazy">
+          </div>
+          <div class="showcase-details">
+            <div class="detail-pill">
+              <strong>Dynamic Executive Summary</strong>
+              <p>Contextual English narrative synthesized on-the-fly from underlying metrics.</p>
+            </div>
+            <div class="detail-pill">
+              <strong>Vector Price Charts</strong>
+              <p>Embedded ReportLab vector drawings comparing top premium book prices.</p>
+            </div>
+            <div class="detail-pill">
+              <strong>Two-Pass Pagination</strong>
+              <p>NumberedCanvas providing dynamic running headers and "Page X of Y" footers.</p>
+            </div>
+            <div class="detail-pill">
+              <strong>Governance Audit</strong>
+              <p>Technical quality check verifying complete attributes and duplicate URL absence.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Automated Data Pipeline (GitHub Actions) -->
+    <section id="automation">
+      <div class="container">
+        <div class="section-header">
+          <h2>Automated Data Pipeline</h2>
+          <p>Portfolio-grade scheduled execution via GitHub Actions with cross-run database preservation.</p>
+        </div>
+
+        <div class="showcase-block">
+          <div class="screenshot-frame">
+            <img src="images/github-actions.png" alt="GitHub Actions workflow execution log showing successful pipeline execution and artifact uploads" loading="lazy">
+          </div>
+          <div class="showcase-details">
+            <div class="detail-pill">
+              <strong>Scheduled Execution</strong>
+              <p>Runs automatically daily at 06:00 UTC via cron, with manual workflow_dispatch triggers.</p>
+            </div>
+            <div class="detail-pill">
+              <strong>Cross-Run Artifact Restoration</strong>
+              <p>Queries GitHub CLI for the latest successful run to restore <code>fpl.db</code> on fresh runners.</p>
+            </div>
+            <div class="detail-pill">
+              <strong>Historical Continuity</strong>
+              <p>Appends new immutable snapshots and uploads the updated database artifact (30-day retention).</p>
+            </div>
+            <div class="detail-pill">
+              <strong>Raw Payload Archiving</strong>
+              <p>Preserves raw API JSON responses under <code>fpl-raw-snapshot</code> for auditing and backtesting.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Technology Stack -->
+    <section id="tech-stack">
+      <div class="container">
+        <div class="section-header">
+          <h2>Technology Stack</h2>
+          <p>Engineered entirely in Python 3.12 with purpose-fit libraries and zero external frontend dependencies.</p>
+        </div>
+
+        <div class="tech-grid">
+          <div class="tech-badge">Python <span>3.12</span></div>
+          <div class="tech-badge">Requests <span>HTTP Client</span></div>
+          <div class="tech-badge">BeautifulSoup <span>HTML Parser</span></div>
+          <div class="tech-badge">Pydantic <span>Validation v2</span></div>
+          <div class="tech-badge">SQLite <span>Relational DB</span></div>
+          <div class="tech-badge">Pandas <span>Data Analytics</span></div>
+          <div class="tech-badge">openpyxl <span>Excel Reports</span></div>
+          <div class="tech-badge">ReportLab <span>PDF Generation</span></div>
+          <div class="tech-badge">Streamlit <span>Web Dashboard</span></div>
+          <div class="tech-badge">pytest <span>Test Suite</span></div>
+          <div class="tech-badge">GitHub Actions <span>Automation</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Engineering Highlights -->
+    <section id="highlights">
+      <div class="container">
+        <div class="section-header">
+          <h2>Engineering Highlights</h2>
+          <p>Architectural decisions ensuring reliability, auditability, and maintainability.</p>
+        </div>
+
+        <div class="highlights-grid">
+          <div class="highlight-item">
+            <h4><span>•</span> Reusable Architecture</h4>
+            <p>Extraction, validation, storage, and analytics layers are decoupled. New data targets can be added without rewriting database or analytics logic.</p>
+          </div>
+          <div class="highlight-item">
+            <h4><span>•</span> Separation of Analytics from UI</h4>
+            <p>Neither the Streamlit dashboard nor the Excel/PDF reporters contain raw SQL. All metrics are computed by dedicated, testable Pandas engines.</p>
+          </div>
+          <div class="highlight-item">
+            <h4><span>•</span> Typed Validation &amp; Error Isolation</h4>
+            <p>Pydantic v2 schemas enforce type constraints and domain boundaries. Invalid records are quarantined with diagnostic logs while valid records continue through the pipeline.</p>
+          </div>
+          <div class="highlight-item">
+            <h4><span>•</span> Raw Data Preservation</h4>
+            <p>Unparsed source responses (.html and .json) are saved to disk under timestamped run IDs before parsing, enabling compliance audits and re-processing without re-scraping.</p>
+          </div>
+          <div class="highlight-item">
+            <h4><span>•</span> Immutable Historical Snapshots</h4>
+            <p>Point-in-time statistics are appended under unique run IDs rather than overwritten, allowing longitudinal trend detection and player progression tracking.</p>
+          </div>
+          <div class="highlight-item">
+            <h4><span>•</span> Graceful Empty-State Handling</h4>
+            <p>Analytics, reporting, and dashboard components gracefully handle missing or empty datasets, displaying informative guidance rather than crashing with unhandled exceptions.</p>
+          </div>
+          <div class="highlight-item">
+            <h4><span>•</span> Comprehensive Test Coverage</h4>
+            <p>A suite of 107 deterministic tests validates HTTP retries, pagination traversal, schema boundaries, upserts, delta calculations, and workflow configuration.</p>
+          </div>
+          <div class="highlight-item">
+            <h4><span>•</span> Stateful Continuity on Ephemeral Runners</h4>
+            <p>GitHub Actions uses GitHub CLI queries to restore the previous database artifact, preserving historical multi-run continuity without maintaining a cloud database.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Results / Proof -->
+    <section id="results">
+      <div class="container">
+        <div class="section-header">
+          <h2>Verified Verification Results</h2>
+          <p>Key proof points and verified execution metrics from the test suite and automated workflow.</p>
+        </div>
+
+        <div class="proof-grid">
+          <div class="proof-card">
+            <div class="num">107</div>
+            <div class="label">Deterministic Tests Passing</div>
+            <div class="sub">1 deselected live test (offline default)</div>
+          </div>
+          <div class="proof-card">
+            <div class="num">667</div>
+            <div class="label">FPL Records Per Run</div>
+            <div class="sub">Verified per historical snapshot</div>
+          </div>
+          <div class="proof-card">
+            <div class="num">2</div>
+            <div class="label">Client Deliverable Formats</div>
+            <div class="sub">Excel (.xlsx) and Executive PDF (.pdf)</div>
+          </div>
+          <div class="proof-card">
+            <div class="num">100%</div>
+            <div class="label">Cross-Run Continuity</div>
+            <div class="sub">Artifact restoration across runs</div>
+          </div>
+        </div>
+        <p class="proof-note">* Proof points reflect verified project stages and deterministic test suite execution.</p>
+      </div>
+    </section>
+
+    <!-- Limitations -->
+    <section id="limitations">
+      <div class="container">
+        <div class="section-header">
+          <h2>Engineering Limitations</h2>
+          <p>Honest appraisal of technical trade-offs and current architectural scope.</p>
+        </div>
+
+        <div class="limitations-box">
+          <ul class="limitations-list">
+            <li>
+              <strong>Public FPL Service Dependency</strong>
+              External REST endpoint availability and response formats depend on the official Fantasy Premier League service.
+            </li>
+            <li>
+              <strong>Workflow Artifacts vs. Production DB</strong>
+              GitHub Actions artifacts model workflow state storage. A high-concurrency production SaaS would utilize a managed PostgreSQL database.
+            </li>
+            <li>
+              <strong>Separately Run Streamlit Application</strong>
+              The Streamlit dashboard is currently run locally or containerized rather than hosted as a public multi-tenant SaaS application.
+            </li>
+            <li>
+              <strong>Controlled Demonstration Scraping Target</strong>
+              Books-to-Scrape is a public testing sandbox without aggressive anti-bot defenses (CAPTCHAs/Cloudflare) which would require browser automation tools like Playwright.
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Final Call to Action -->
+    <section class="cta-section">
+      <div class="container">
+        <h2>Build automated data workflows that turn raw sources into usable business outputs.</h2>
+        <p>This project demonstrates the architecture I use for data extraction, validation, analytics, reporting, dashboards, and scheduled automation.</p>
+        <div class="hero-actions">
+          <a href="https://github.com/diasclyde92/fpl-data-automation-portfolio" class="btn btn-primary" target="_blank" rel="noopener noreferrer">View Source on GitHub</a>
+          <a href="https://github.com/diasclyde92/fpl-data-automation-portfolio#readme" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">Explore the Technical README</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Site Footer -->
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-left">
+        <p>FPL Data Automation &amp; Analytics Pipeline</p>
+        <p>Python &bull; Data Engineering &bull; Automation</p>
+      </div>
+      <div class="footer-right">
+        <p><a href="https://github.com/diasclyde92/fpl-data-automation-portfolio" target="_blank" rel="noopener noreferrer">github.com/diasclyde92/fpl-data-automation-portfolio</a></p>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
