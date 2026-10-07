@@ -92,10 +92,10 @@ Web Source (HTML / API)
 - [x] **Phase 10: Web Dashboard Integration (Streamlit)**
 - [x] **Phase 11: Historical Snapshot Storage (FPL)**
   - Immutable historical player snapshots (`fpl_player_snapshots`), pipeline run audit log (`fpl_runs`), dual persistence (current state + historical snapshots), and idempotent transaction boundaries.
-- [x] **Phase 12: Historical Trend & Change Analytics (Pandas)**
-  - Dedicated historical analytics layer (`FPLHistoricalAnalytics`): run-to-run deltas, price/ownership/form movers, points per million value trajectories, transparent momentum scoring, and individual player timelines.
-- [ ] **Phase 13: Automation & CI/CD Pipeline**
-  - GitHub Actions workflow for scheduled headless execution and artifact archiving.
+- [x] **Phase 13: Dashboard Historical Trends Integration (Streamlit)**
+  - Integrated longitudinal multi-run analysis into Streamlit dashboard: view mode switcher, price/ownership movers, form/points/value acceleration, transparent momentum scorecards, and player history line charts.
+- [x] **Phase 14: Automated Pipeline & CI/CD Orchestration (GitHub Actions)**
+  - Headless daily automated execution (`.github/workflows/fpl_pipeline.yml`), stateful artifact restoration (`fpl-database`), raw JSON archiving (`fpl-raw-snapshot`), and quality validation logging.
 
 ---
 
@@ -385,6 +385,48 @@ python -m src.analytics.fpl_historical_analytics --top-n 10 --db-path data/proce
 # Inspect full historical snapshot timeline for a specific player ID
 python -m src.analytics.fpl_historical_analytics --player-id 1
 ```
+
+---
+
+## ⚙️ Automated FPL Historical Pipeline (GitHub Actions - Phase 14)
+
+The pipeline is automated via a production-style CI/CD workflow defined in [`.github/workflows/fpl_pipeline.yml`](file:///.github/workflows/fpl_pipeline.yml).
+
+### 🔄 Automation Architecture & Persistence Strategy
+```
+GitHub Actions Runner (ubuntu-latest)
+       │
+       ▼
+1. Checkout & Python 3.12 Setup
+       │
+       ▼
+2. Download Previous Artifact (`fpl-database`)
+       ├── If found: Restores data/processed/fpl.db
+       └── If first run: Initializes fresh historical store
+       │
+       ▼
+3. Execute Pipeline CLI
+       python -m src.pipeline.fpl_pipeline --save-raw --verbose
+       │
+       ▼
+4. Run Verification & Historical Analytics Check
+       python -m src.analytics.fpl_historical_analytics --top-n 5
+       │
+       ▼
+5. Upload Updated Artifacts (30-day retention)
+       ├── `fpl-database`: data/processed/fpl.db (updated state)
+       └── `fpl-raw-snapshot`: data/raw/fpl/ (immutable raw JSON)
+```
+
+### 🕒 Workflow Triggers
+- **Scheduled Trigger**: Runs daily at `06:00 UTC` via standard cron (`0 6 * * *`).
+- **Manual Trigger**: Supports immediate on-demand execution via GitHub's `workflow_dispatch` button.
+
+### 💾 Artifact-Based Database Continuity
+- **Stateless Runners vs Stateful Data**: Because GitHub Actions runners start fresh on every execution and generated databases are kept outside of Git history (`.gitignore`), the workflow downloads the previous `fpl-database` artifact before execution.
+- **Continuous Historical Accumulation**: When the pipeline executes, it appends the new snapshot to the restored database and immediately uploads the updated `fpl.db` back as an artifact with 30-day retention. Subsequent scheduled runs restore this state, enabling continuous multi-run trends.
+- **First-Run Resilience**: The artifact download step specifies `continue-on-error: true`. If no previous artifact exists (such as on the initial workflow run), the pipeline initializes a clean database without failing.
+- **Repository Hygiene**: Neither the SQLite database (`fpl.db`) nor raw JSON payloads pollute Git commits, strictly preserving production data engineering hygiene.
 
 ---
 

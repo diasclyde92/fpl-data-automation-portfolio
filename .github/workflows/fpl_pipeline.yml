@@ -1,0 +1,101 @@
+name: Scheduled FPL Historical Pipeline
+
+'on':
+  schedule:
+    # Runs daily at 06:00 UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+# Enforce sequential execution to avoid concurrent runs racing on the state artifact
+concurrency:
+  group: fpl-pipeline-state
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  run-pipeline:
+    name: Execute FPL Data Pipeline
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Restore previous FPL database from latest successful workflow run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          CURRENT_RUN_ID: ${{ github.run_id }}
+        run: |
+          mkdir -p data/processed
+
+          echo "Searching for latest successful previous workflow run in $GH_REPO..."
+          PREV_RUN_ID=$(gh run list \
+            --repo "$GH_REPO" \
+            --workflow "fpl_pipeline.yml" \
+            --status success \
+            --json databaseId \
+            --jq "[.[] | select(.databaseId != ($CURRENT_RUN_ID | tonumber))][0].databaseId // empty")
+
+          if [ -n "$PREV_RUN_ID" ]; then
+            echo "Found previous successful run ID: $PREV_RUN_ID"
+            echo "Attempting to download 'fpl-database' artifact from run $PREV_RUN_ID..."
+            if gh run download "$PREV_RUN_ID" \
+              --repo "$GH_REPO" \
+              --name "fpl-database" \
+              --dir data/processed; then
+              echo "Successfully restored previous database artifact."
+            else
+              echo "Warning: Artifact 'fpl-database' not found in run $PREV_RUN_ID. Starting clean database."
+            fi
+          else
+            echo "No previous successful workflow run found (first run). Starting fresh historical state."
+          fi
+
+          if [ -f data/processed/fpl.db ]; then
+            echo "Database state ready:"
+            ls -lh data/processed/fpl.db
+          else
+            echo "No existing database present. Clean database will be initialized by pipeline."
+          fi
+
+      - name: Run FPL historical pipeline
+        run: |
+          python -m src.pipeline.fpl_pipeline --save-raw --verbose
+
+      - name: Verify run output and statistics
+        run: |
+          python -c "from src.storage.fpl_storage import FPLStorage; s = FPLStorage(); print(f'Total Players: {s.count_players()}'); print(f'Total Runs: {s.count_runs()}'); print(f'Total Snapshots: {s.count_snapshots()}'); print('Latest Run:', s.get_latest_run())"
+          python -m src.analytics.fpl_historical_analytics --top-n 5
+
+      - name: Upload updated FPL database artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fpl-database
+          path: data/processed/fpl.db
+          retention-days: 30
+          overwrite: true
+
+      - name: Upload raw FPL snapshot artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fpl-raw-snapshot
+          path: data/raw/fpl/
+          retention-days: 30
+          overwrite: true
