@@ -1,728 +1,445 @@
-# End-to-End Web Scraping & Data Automation Pipeline
+# FPL Data Automation & Analytics Pipeline
 
-> **Portfolio Showcase**: A production-grade demonstration project modeling an end-to-end data engineering pipeline—from web extraction and data transformation to multi-format business reporting, web dashboarding, and automated CI/CD scheduling.
-
----
-
-## 📌 Project Purpose
-
-Freelance clients frequently need robust, hands-off automation systems: scraping dynamic web data reliably, validating and transforming records, persisting them in a structured store, and automatically generating actionable client deliverables (such as Excel sheets, PDF briefs, or interactive dashboards).
-
-This project demonstrates a production-style, maintainable implementation of that exact lifecycle. While demonstrated using a Fantasy Premier League (FPL) data use case (integrating with an existing GitHub Pages web presence), the architecture is intentionally modular and reusable across e-commerce, real estate, lead generation, financial monitoring, and competitor price tracking.
+A portfolio-grade end-to-end data engineering and automation system demonstrating reliable web and API data extraction, strict schema validation, relational persistence, vectorized Pandas analytics, professional business reporting (Excel and executive PDF), interactive web visualization with Streamlit, and scheduled data automation via GitHub Actions with cross-run state continuity.
 
 ---
 
-## 🚀 What This Project Demonstrates
+## Overview
 
-- **Resilient Web Extraction**: Handling network requests, rate limiting, and dynamic content extraction.
-- **Data Pipeline Engineering**: Structured staging from raw ingested records to validated, cleaned data models.
-- **Relational Storage**: Relational schema design and efficient querying with SQLite.
-- **Automated Business Reporting**:
-  - Formatted multi-tab Excel workbooks (`.xlsx`) with styling and formulas.
-  - Automated executive summary PDF generation.
-- **Interactive Visualization**: Lightweight dashboard presentation for stakeholder consumption.
-- **Scheduled Automation**: Headless workflow orchestration via GitHub Actions.
-- **Maintainability & Testing**: Clean project conventions, configuration isolation, and automated tests.
+Modern organizations require dependable, hands-off automation systems: extracting dynamic web and API datasets reliably, enforcing data quality rules, tracking historical state across time, and translating raw records into actionable deliverables—including spreadsheet models, executive briefing documents, and live interactive dashboards.
+
+This project was built to demonstrate that complete lifecycle with production-level engineering rigor. Rather than serving as an isolated, one-off web scraper or a static analytical notebook, this repository models a fully integrated, modular data engineering pipeline. It solves the real-world challenge of monitoring frequently updating external data sources (demonstrated with the Fantasy Premier League public API and a complementary multi-page e-commerce catalog), preserving immutable historical audit trails, computing longitudinal momentum and pricing shifts, and orchestrating unattended daily runs.
 
 ---
 
-## 🔄 High-Level Pipeline
+## What This Project Demonstrates
+
+- **Resilient Web & API Extraction**: Modular HTTP layer featuring custom header simulation, connection timeouts, and exponential backoff retries for transient HTTP errors (`429`, `5xx`).
+- **Reusable Pipeline Architecture**: Clean separation of ingestion, parsing, domain modeling, relational persistence, analytical processing, and client presentation.
+- **Pagination & Raw Ingestion Capture**: Robust multi-page link traversal with cycle/loop protection and immutable raw staging (HTML/JSON) under timestamped run IDs.
+- **Typed Schema Validation**: Pydantic v2 domain schemas validating constraints, boundary conditions, and types, isolating invalid records without terminating the pipeline.
+- **Relational Persistence**: Clean SQLite schema modeling with parameterized upserts (`ON CONFLICT DO UPDATE`), atomic transactions, and historical append-only snapshot audit trails.
+- **Vectorized Pandas Analytics**: High-performance tabular aggregations, descriptive statistics, ranking engines, and automated data quality diagnostics.
+- **Automated Excel Deliverables**: Executive multi-worksheet `.xlsx` reports generated via `openpyxl`, featuring typography palettes, freeze panes, auto-filters, custom number formatting, and embedded charts.
+- **Executive PDF Briefings**: Multi-page publication-quality PDF briefs generated via ReportLab Platypus, featuring running headers, dynamic narrative summaries, KPI scorecards, and vector charts.
+- **Interactive Web Dashboards**: Multi-page interactive Streamlit dashboard presenting live performance filters, player leaderboards, value scatter plots, and longitudinal trend analysis.
+- **Longitudinal Trend & Momentum Tracking**: Run-to-run delta calculation engine, percentage-point ownership shifts, price trajectory detection, player history tracking, and transparent momentum scoring.
+- **Scheduled Data Automation**: Automated daily orchestration via GitHub Actions (`fpl_pipeline.yml`), featuring native concurrency locking, workflow dispatch, and verification steps.
+- **Cross-Run State Restoration**: Artifact-based database preservation and restoration across ephemeral GitHub Actions runners using the GitHub CLI (`gh`).
+- **Test-Driven Reliability**: Comprehensive test suite encompassing 107 deterministic tests covering units, mock pipelines, database integrity, analytics, reporting, dashboard services, and workflow syntax.
+
+---
+
+## Architecture
+
+The system enforces strict separation of concerns across every layer of the data lifecycle:
 
 ```
-Web Source (HTML / API)
-       │
-       ▼
-[ Extraction Layer ] (requests / BeautifulSoup / Playwright)
-       │
-       ▼
- Raw Data Staging (data/raw)
-       │
-       ▼
-[ Cleaning & Validation ] (pandas / pydantic)
-       │
-       ▼
- Relational Database (SQLite)
-       │
-       ▼
-[ Analytics & Aggregations ]
-       │
-       ├─────────────────────────┼─────────────────────────┐
-       ▼                         ▼                         ▼
- Excel Report (.xlsx)      PDF Summary (.pdf)       Web Dashboard
-       │                         │                         │
-       └─────────────────────────┴─────────────────────────┘
-                                 │
-                   [ Automated Schedule / CI ] (GitHub Actions)
+[ Ingestion Sources ]
+  • Fantasy Premier League API (Official JSON)
+  • Books to Scrape Catalog (Multi-page HTML)
+          │
+          ▼
+[ HTTP & Extraction Layer ]
+  • HTTPClient (timeouts, headers, exponential retries)
+  • BaseScraper / FPLScraper / BookScraper
+          │
+          ├────────────────────────────────────────┐
+          ▼                                        ▼
+[ Raw Staging (data/raw/) ]             [ Parsing & Domain Modeling ]
+  • data/raw/fpl/<run_id>/bootstrap.json   • Pydantic v2 Models
+  • data/raw/books/<run_id>/page_*.html    • Type coercion & boundary validation
+                                                   │
+                                                   ▼
+                                        [ Data Validation Guard ]
+                                           ├── Invalid: Logged & audited
+                                           └── Valid: Forwarded to storage
+                                                   │
+                                                   ▼
+                                        [ SQLite Persistence ]
+                                           • Current State (fpl_players, books)
+                                           • Execution Audit (fpl_runs)
+                                           • Immutable Snapshots (fpl_player_snapshots)
+                                                   │
+                                                   ▼
+                                        [ Vectorized Analytics Layer ]
+                                           • FPLAnalytics / FPLHistoricalAnalytics
+                                           • BookAnalytics (Pandas engines)
+                                                   │
+          ┌────────────────────────────────────────┼────────────────────────────────────────┐
+          ▼                                        ▼                                        ▼
+[ Automated Reporting ]                 [ Interactive Dashboard ]               [ Automated Orchestration ]
+  • Excel (.xlsx, openpyxl)               • Streamlit Web Application              • GitHub Actions Automation
+  • PDF (.pdf, ReportLab)                 • Current KPIs & Scatter Plots           • Daily cron + manual dispatch
+  • Formatted tables & charts             • Longitudinal Multi-run Trends          • Cross-run artifact restore
 ```
 
----
-
-## 🛠️ Planned Technology Stack
-
-- **Language**: Python 3.10+
-- **Extraction**: `requests`, `beautifulsoup4` (Playwright / Selenium introduced only if dynamic rendering is required)
-- **Data Processing & Validation**: `pandas`
-- **Database**: SQLite (built-in relational engine, zero-config deployment)
-- **Reporting**: `openpyxl` (Excel), PDF generation library (e.g. `reportlab` or `weasyprint`)
-- **Testing**: `pytest`
-- **Automation / Orchestration**: GitHub Actions
+The historical FPL pipeline builds directly on top of the reusable HTTP, storage, and analytics patterns established in the foundation, demonstrating that the architecture easily accommodates diverse web and API data structures.
 
 ---
 
-## 📅 Planned Implementation Phases
+## Data Pipelines
 
-- [x] **Phase 1: Project Skeleton & Repository Setup**
-  - Project directory conventions, documentation, environment configuration, and entry point.
-- [x] **Phase 2: Reusable Scraping Foundation**
-  - Resilient HTTP client with retry logic, custom exception taxonomy, BeautifulSoup parsing helper, and abstract base scraper lifecycle.
-- [x] **Phase 3: First Concrete Scraper Implementation**
-  - Concrete scraper demonstration (`BookScraper`) against a public test target, value normalization, error tolerance, CLI execution, and unit/integration testing.
-- [x] **Phase 4: Pagination & Raw Data Storage**
-  - Catalog pagination traversal, loop protection, and raw HTML artifact preservation under `data/raw/`.
-- [x] **Phase 5: Data Modeling, Validation & SQLite Persistence**
-  - Pydantic domain models, data validation/normalization, duplicate upsert handling, and relational persistence with SQLite.
-- [x] **Phase 6: Relational Data Analytics (Pandas)**
-  - Decoupled analytics layer reading SQLite records into structured DataFrames, computing statistics, ratings distributions, rankings, and data quality diagnostics.
-- [x] **Phase 7: Professional Excel Reporting Layer (openpyxl)**
-  - Executive multi-tab `.xlsx` client deliverable with KPI summary, catalog data tables, price distributions, rating charts, and inventory breakdowns.
-- [x] **Phase 8: Automated PDF Executive Briefing (ReportLab)**
-  - Multi-page client-ready PDF brief with dynamic narrative insights, KPI scorecard, pricing charts, rating breakdowns, and data governance audit.
-- [x] **Phase 9: Target Analysis & Primary Use Case (FPL)**
-  - Concrete domain pipeline for Fantasy Premier League: official API extraction, Pydantic data modeling, SQLite relational persistence, and Pandas analytics.
-- [x] **Phase 10: Web Dashboard Integration (Streamlit)**
-- [x] **Phase 11: Historical Snapshot Storage (FPL)**
-  - Immutable historical player snapshots (`fpl_player_snapshots`), pipeline run audit log (`fpl_runs`), dual persistence (current state + historical snapshots), and idempotent transaction boundaries.
-- [x] **Phase 13: Dashboard Historical Trends Integration (Streamlit)**
-  - Integrated longitudinal multi-run analysis into Streamlit dashboard: view mode switcher, price/ownership movers, form/points/value acceleration, transparent momentum scorecards, and player history line charts.
-- [x] **Phase 14: Automated Pipeline & CI/CD Orchestration (GitHub Actions)**
-  - Headless daily automated execution (`.github/workflows/fpl_pipeline.yml`), stateful artifact restoration (`fpl-database`), raw JSON archiving (`fpl-raw-snapshot`), and quality validation logging.
+The repository features two complementary data pipelines showcasing different operational environments:
 
----
+### 1. Books-to-Scrape Pipeline (E-Commerce Web Ingestion)
+- **Target**: [Books to Scrape](http://books.toscrape.com/) sandbox.
+- **Ingestion Pattern**: Multi-page web crawling traversing pagination controls with loop protection.
+- **Processing**:
+  - `HTTPClient` retrieves HTML responses with retry resilience.
+  - `RawStorage` stages raw HTML snapshots under `data/raw/books/<run_id>/`.
+  - `BookScraper` parses DOM structures via BeautifulSoup and normalizes prices, stock statuses, ratings, and canonical URLs.
+  - `Book` Pydantic model enforces title lengths, non-negative price bounds, and valid rating ranges.
+  - `SQLiteStorage` executes atomic upserts (`INSERT ... ON CONFLICT(detail_url) DO UPDATE`) into `data/processed/books.db`.
+  - `BookAnalytics` computes pricing statistics, rating distributions, and data hygiene audits.
+  - `ExcelReport` and `PDFReport` generate polished executive deliverables.
+- **Purpose**: Provides a controlled, repeatable environment demonstrating HTML extraction, pagination traversal, and multi-format document delivery.
 
-## 🏗️ End-to-End Pipeline Architecture
-
-The system enforces strict separation of concerns across extraction, modeling, validation, storage, and analytics:
-
-```
-                  Target Website (HTML)
-                           │
-                           ▼
-                      HTTPClient (retries, timeouts, headers)
-                           │
-                           ▼
-                      BookScraper (traverses pagination controls)
-                     ┌─────┴────────────────────────┐
-                     ▼                              ▼
-             Raw HTML Responses             Extracted Records
-                     │                     (loose Python dicts)
-                     ▼                              │
-            [ RawStorage Layer ]                    ▼
-                     │                      [ Book Data Model ]
-                     ▼                         (Pydantic v2)
-          data/raw/books/<run_id>/                  │
-              ├── page_001.html                     ▼
-              └── page_002.html             [ Data Validation ]
-                                            (type checking & rules)
-                                             ┌──────┴──────┐
-                                             ▼             ▼
-                                        Valid Books   Invalid Records
-                                             │         (logged/audited)
-                                             ▼
-                                     [ SQLiteStorage ]
-                                  (parameterized upsert)
-                                             │
-                                             ▼
-                                  data/processed/books.db
-                                             │
-                                             ▼
-                                     [ BookAnalytics ]
-                                      (Pandas layer)
-                                 ┌───────────┴───────────┐
-                                 ▼                       ▼
-                          AnalyticsResult         Data Quality
-                          (stats & rankings)       Diagnostics
-                                 │
-                                 ▼
-                     Downstream Reporting & BI
-                       (Excel, PDF, Web UI)
-```
-
-### 🧠 Why Separation of Concerns Matters
-In professional data engineering:
-- **Scraper's Sole Job**: Navigate the web and extract raw values from HTML without caring how data is stored or analyzed.
-- **Model & Validation Job**: Enforce domain invariants and clean inputs before downstream persistence without caring about HTML tags.
-- **Database Storage Job**: Manage relational schemas, connection lifecycles, and transactions without web or analytical dependencies.
-- **Analytics Layer Job**: Consume clean tabular data from SQLite, perform vectorized aggregation with Pandas, compute summary statistics, and provide structured outputs for future Excel/PDF/dashboard consumers.
-- **Pipeline Orchestrator**: Coordinates the flow cleanly so scrapers can easily be replaced (e.g. swapping `BookScraper` for `FPLScraper`) while reusing storage, analytics, and reporting patterns.
+### 2. Fantasy Premier League Pipeline (Dynamic API Ingestion)
+- **Target**: Official FPL API endpoint (`https://fantasy.premierleague.com/api/bootstrap-static/`).
+- **Ingestion Pattern**: Headless REST API ingestion capturing rapid player price, ownership, and performance shifts across 20 Premier League clubs.
+- **Processing**:
+  - `HTTPClient` ingests bootstrap JSON data and `RawStorage` records raw payloads under `data/raw/fpl/<run_id>/bootstrap.json`.
+  - `FPLScraper` normalizes player records, scales tenth-million pricing (`61` $\to$ `£6.1m`), parses percentage strings, and maps team/position IDs to standard codes (`ARS`, `MCI`, `MID`, `FWD`).
+  - `FPLPlayer` validates 17 statistical attributes with strict type constraints.
+  - `FPLStorage` executes dual persistence: updating current player state (`fpl_players`) while appending immutable execution snapshots (`fpl_player_snapshots`) linked to audit records (`fpl_runs`).
+  - `FPLAnalytics` and `FPLHistoricalAnalytics` evaluate points per million, form acceleration, ownership deltas, and player timelines.
+  - `fpl_dashboard.py` renders live interactive visualizations in Streamlit.
+  - GitHub Actions schedules and executes the pipeline unattended.
+- **Purpose**: Represents a real-world enterprise workload handling frequent schema updates, longitudinal state comparison, and scheduled data automation.
 
 ---
 
-## ⚽ Real-World Data Pipeline: Fantasy Premier League (Phase 9)
+## Historical Data Engineering
 
-In Phase 9, the reusable pipeline architecture built and tested with Books to Scrape was extended to a real-world, rapidly changing sports data target: **Fantasy Premier League (FPL)**.
+A common failure mode in web-scraping projects is overwriting data on every run, permanently losing the ability to track how metrics change over time. The FPL pipeline solves this via an immutable snapshot architecture:
 
-### 🌐 Source Data Architecture
-- **Endpoint**: Official FPL API bootstrap static endpoint (`https://fantasy.premierleague.com/api/bootstrap-static/`).
-- **Data Flow**:
-  1. [`HTTPClient`](file:///src/scraper/http_client.py) performs resilient GET requests with desktop User-Agent simulation and exponential retry backoff.
-  2. [`RawStorage`](file:///src/storage/raw_storage.py) preserves immutable raw JSON responses under `data/raw/fpl/<run_id>/bootstrap.json` for auditing and historical backtesting.
-  3. [`FPLScraper`](file:///src/scraper/fpl_scraper.py) extracts raw element structures, resolving team IDs to short names (e.g. `ARS`, `MCI`, `LIV`) and element type IDs to standard position abbreviations (`GKP`, `DEF`, `MID`, `FWD`), scaling tenth-million prices (`now_cost` `61` $\to$ `£6.1m`), and parsing percentage strings into floats.
-  4. [`FPLPlayer`](file:///src/models/fpl_player.py) model validates domain invariants using Pydantic v2.
-  5. [`FPLStorage`](file:///src/storage/fpl_storage.py) executes parameterized upserts (`INSERT ... ON CONFLICT(id) DO UPDATE SET ...`) into `data/processed/fpl.db`.
-  6. [`FPLAnalytics`](file:///src/analytics/fpl_analytics.py) computes key fantasy metrics: points-per-million value rankings, points-per-90 rates, positional & team totals, top form leaders, and data hygiene audits.
+- **Run ID Lifecycle**: Every pipeline execution receives an atomic, ISO-based run identifier (e.g. `fpl_20261006_083932`) registered in `fpl_runs` with start/completion timestamps, total extracted counts, and validation metrics.
+- **Dual Persistence Model**:
+  - `fpl_players`: Current-state table updated in-place via upsert for fast live querying.
+  - `fpl_player_snapshots`: Append-only, immutable table preserving complete point-in-time statistics across every run.
+- **Idempotency & Integrity**: A composite `UNIQUE(run_id, player_id)` database constraint guarantees that pipeline retries or accidental re-executions cannot duplicate data within a single run.
+- **Longitudinal Trend Engine**:
+  - **Run-to-Run Deltas**: Automatically resolves the latest two completed runs and calculates exact differences ($\text{Delta} = \text{Latest} - \text{Previous}$).
+  - **Price Movers**: Detects transfer market rises and price drops across gameweeks.
+  - **Ownership Shifts**: Computes absolute percentage point (`pp`) ownership changes ($25.0\% \to 28.0\%$ is $+3.00\text{ pp}$), avoiding misleading relative ratios.
+  - **Momentum Scoring**: Evaluates rising and falling assets using a transparent linear formulation:
+    $$\text{Momentum Score} = (2.0 \times \Delta\text{Ownership}_{\text{pp}}) + (1.0 \times \Delta\text{Form}) + (0.5 \times \Delta\text{Value})$$
+  - **Player History Timelines**: Generates historical time-series DataFrames for individual players across all recorded runs.
+  - **Data Quality Diagnostics**: Programmatically verifies snapshot counts, detects orphaned records, and confirms historical uniqueness.
 
-### 💻 Running the FPL Pipeline CLI
-Execute live extraction, validation, raw JSON backup, and relational persistence:
+---
 
+## Interactive Dashboard
+
+The Streamlit web application ([`src/dashboard/fpl_dashboard.py`](file:///src/dashboard/fpl_dashboard.py)) provides an interactive visual frontend that consumes [`FPLAnalytics`](file:///src/analytics/fpl_analytics.py) and [`FPLHistoricalAnalytics`](file:///src/analytics/fpl_historical_analytics.py). The presentation layer is strictly decoupled: the dashboard contains zero raw SQL queries and delegates all mathematical computations to the underlying analytics layer.
+
+### Current FPL Performance
+The **Current Performance** view provides an interactive workspace for exploring current player valuations, fixture form, and team totals.
+
+![FPL Dashboard](docs/images/fpl-dashboard.png)
+
+- **KPI Scorecards**: Instant visibility into total player count, average price, aggregate points, and league-wide ownership.
+- **Interactive Multi-Parameter Filters**: Dynamic sidebar filters for position, club, availability status, price ranges, minimum ownership, and minimum minutes played.
+- **Leaderboard Rankings**: Tabbed leaderboards for Total Points, Value (Points per Million), Current Form, Goals, and Assists.
+- **Value Efficiency Scatter Plot**: Interactive visualization charting Player Price against Total Points, highlighting over- and under-performing assets.
+- **Player Detail Scorecard**: Detailed inspection tool displaying granular metrics (Bonus points, Clean sheets, Gameweek points).
+
+### Historical FPL Trends
+The **Historical Trends** view enables longitudinal comparison across discrete pipeline execution runs.
+
+![Historical FPL Dashboard](docs/images/fpl-historical-dashboard.png)
+
+- **Run Comparison Selector**: Allows users to compare any two historical execution runs or view the latest vs. previous automated runs.
+- **Market Movers**: Ranked data tables highlighting top price rises/drops and percentage-point ownership surges.
+- **Form & Acceleration**: Identifies players exhibiting surging or declining point generation and rolling form.
+- **Transparent Momentum Leaderboards**: Displays top rising and falling assets based on multi-factor momentum scoring.
+- **Chronological Player Timeline**: Line charts tracking individual player price, points, and ownership trajectories across all recorded runs.
+- **Historical Quality Audit**: Visual health monitor verifying total runs, snapshot counts, and schema integrity.
+
+*(Note: In development and testing environments where pipeline runs are executed in rapid succession, historical deltas reflect identical or near-identical values. The dashboard capabilities, comparison selectors, and delta calculation formulas are fully verified and operational.)*
+
+---
+
+## Automated Reporting
+
+For stakeholders who require offline, portable business deliverables rather than a web dashboard, the pipeline includes dedicated Excel and PDF generators that consume structured analytical outputs.
+
+### Excel Analytics Report
+Generated by [`ExcelReport`](file:///src/reporting/excel_report.py) using `openpyxl`, this multi-worksheet deliverable provides an executive spreadsheet model.
+
+![Excel Report](docs/images/excel-report-books.png)
+
+- **Multi-Tab Organization**: Structured across `Summary`, `Books Data`, `Price Analysis`, `Rating Analysis`, and `Availability` worksheets.
+- **Executive Styling**: Cohesive corporate navy palette (`#24426B`), alternating zebra striping, freeze panes (`A2`), and auto-filters (`A1:G41`).
+- **Data Formatting**: Strict currency formatting (`£#,##0.00`), localized dates, percentage shares (`0.0%`), and active product hyperlinks.
+- **Native Charts**: Embedded openpyxl column charts illustrating price distributions and customer rating allocations.
+- **Resilient Empty State**: Generates structured empty-state workbooks with descriptive headers rather than crashing when database records are missing.
+
+### Executive PDF Report
+Generated by [`PDFReport`](file:///src/reporting/pdf_report.py) using ReportLab Platypus, this print-ready publication provides an executive memorandum.
+
+![PDF Report](docs/images/pdf-report-books.png)
+
+- **Multi-Page Layout**: Formatted with running headers, corporate banners, and a dynamic two-pass `"Page X of Y"` pagination canvas (`NumberedCanvas`).
+- **Dynamic Narrative Summary**: On-the-fly English executive summary synthesizing catalog size, median valuations, dominant ratings, and inventory health.
+- **Scorecard & Leaderboards**: Styled metric grids detailing mean/median prices, value ranges, top expensive items, and budget options with automatic text wrapping.
+- **Vector Graphics**: Native ReportLab vector drawings (`Drawing` with horizontal bars) illustrating premium price tiers.
+- **Governance Audit**: Embedded data-quality breakdown validating complete prices, star rating conformity, and zero duplicate entries.
+
+---
+
+## Automated Pipeline via GitHub Actions
+
+The FPL historical pipeline is fully automated using GitHub Actions ([`.github/workflows/fpl_pipeline.yml`](file:///.github/workflows/fpl_pipeline.yml)).
+
+![GitHub Actions](docs/images/github-actions.png)
+
+### Workflow Lifecycle
+1. **Execution Triggers**:
+   - **Scheduled**: Runs automatically once per day at `06:00 UTC` via standard cron (`0 6 * * *`).
+   - **Manual**: Supports immediate execution on demand via GitHub's `workflow_dispatch` trigger.
+2. **Sequential Concurrency**:
+   - Enforces `concurrency: { group: fpl-pipeline-state, cancel-in-progress: false }` to ensure runs execute sequentially and prevent concurrent state collisions.
+3. **Least-Privilege Security**:
+   - Operates with strict read-only repository permissions (`contents: read`, `actions: read`) using the built-in `GITHUB_TOKEN`.
+4. **Cross-Run State Restoration**:
+   - GitHub Actions runners are ephemeral, and database files are excluded from Git commits.
+   - The workflow uses the GitHub CLI (`gh run list`) with `jq` to query the latest successful previous workflow run (excluding the active `github.run_id`).
+   - It downloads the previous `fpl-database` artifact and restores `data/processed/fpl.db`.
+   - On the initial run, the workflow detects the absence of prior artifacts and gracefully initializes a fresh database without failing.
+5. **Pipeline Execution & Verification**:
+   - Executes `python -m src.pipeline.fpl_pipeline --save-raw --verbose`.
+   - Runs deterministic CLI verification steps (`src.storage.fpl_storage` counts and `src.analytics.fpl_historical_analytics --top-n 5`) to validate snapshot accumulation in the job logs.
+6. **Artifact Preservation**:
+   - Uploads updated `data/processed/fpl.db` as artifact `fpl-database` (30-day retention, overwrite enabled).
+   - Archives raw JSON payloads (`data/raw/fpl/`) as artifact `fpl-raw-snapshot` (30-day retention) for compliance and backtesting.
+
+*(Note: This workflow provides a robust, portfolio-grade scheduled automation model demonstrating stateless runner continuity. In high-concurrency production enterprise environments, persistent cloud databases such as PostgreSQL or Amazon RDS are typically preferred over artifact persistence.)*
+
+---
+
+## Testing & Reliability
+
+The codebase follows test-driven development practices with comprehensive unit and integration test coverage across all pipeline layers.
+
+### Test Suite Execution
 ```bash
-# Run extraction and persist to SQLite (data/processed/fpl.db)
-python -m src.pipeline.fpl_pipeline
-
-# Run extraction with raw JSON preservation under data/raw/fpl/<run_id>/
-python -m src.pipeline.fpl_pipeline --save-raw
+# Run the complete deterministic test suite
+pytest -v
 ```
 
-### 📈 Running the FPL Analytics CLI
-Run analytical metrics, top value rankings, and data quality diagnostics:
-
-```bash
-# Run analytics against the default FPL database
-python -m src.analytics.fpl_analytics
-
-# Run analytics with custom database path
-python -m src.analytics.fpl_analytics --db-path data/processed/fpl.db
+### Verified Test Results
+```text
+============================== 107 passed, 1 deselected in 5.48s ==============================
 ```
+*(The single deselected test is a live network integration test marked with `@pytest.mark.integration` to maintain deterministic, offline test execution by default).*
+
+### Coverage Scope
+- **Extraction & Networking**: HTTP client retries, exponential backoff, timeout handling, User-Agent simulation, HTML parsing errors, and raw staging filesystem operations.
+- **Scraper Implementations**: Pagination traversal, relative URL canonicalization, pagination loop protection, and FPL JSON mapping.
+- **Domain Models & Validation**: Pydantic schema validation, boundary rules, type coercion, and invalid-record segregation.
+- **Relational Storage**: SQLite connection lifecycles, table initialization, parameterized upsert operations, pipeline run logging, snapshot immutability, and transactional atomicity.
+- **Analytics Engines**: Descriptive metrics, frequency distributions, rankings, run-to-run delta math, price/ownership movers, form acceleration, and transparent momentum formulas.
+- **Reporting Deliverables**: Excel workbook generation, worksheet counts, column styling, chart bindings, and multi-page PDF Flowable generation.
+- **Dashboard Service Layer**: In-memory filtering logic, player scorecard extraction, and empty-state handling.
+- **Workflow Configuration**: YAML structural validity, cron schedule syntax, concurrency settings, read permissions, and GitHub CLI artifact restoration commands.
 
 ---
 
-## 🖥️ Interactive Web Dashboard (Streamlit - Phase 10)
+## Technology Stack
 
-The [`FPL Dashboard`](file:///src/dashboard/fpl_dashboard.py) provides a web-based business and sports analytics application consuming [`FPLAnalytics`](file:///src/analytics/fpl_analytics.py) and SQLite persistence without embedding raw SQL or duplicating metric calculations.
+| Layer | Technologies | Purpose |
+|---|---|---|
+| **Language & Environment** | Python 3.12 | Core programming runtime |
+| **HTTP & Networking** | `requests`, `urllib3` | Resilient network communication, custom headers, timeout management |
+| **Parsing & Extraction** | `beautifulsoup4`, `lxml` | DOM parsing, HTML tag extraction, CSS selection |
+| **Validation & Modeling** | `pydantic` (v2) | Strict schema validation, type enforcement, data cleaning |
+| **Relational Storage** | `sqlite3` | Zero-configuration relational database, ACID transactions, upserts |
+| **Data Analytics** | `pandas`, `numpy` | Vectorized aggregations, time-series deltas, descriptive statistics |
+| **Spreadsheet Reporting** | `openpyxl` | Formatted multi-tab `.xlsx` workbooks, styling, embedded charts |
+| **Document Reporting** | `reportlab` | Multi-page executive PDF briefs, custom Platypus flowables, vector charts |
+| **Web Dashboard** | `streamlit` | Interactive web UI, reactive filters, statistical charts |
+| **Automated Testing** | `pytest` | Unit, integration, and structural test coverage |
+| **Automation & Orchestration** | GitHub Actions, GitHub CLI (`gh`) | Daily scheduled workflows, cross-run artifact persistence |
 
-### 🏛️ Dashboard Data Flow & Architecture
+---
+
+## Project Structure
+
+```text
+web-scraping-data-pipeline/
+├── .github/
+│   └── workflows/
+│       └── fpl_pipeline.yml         # GitHub Actions automated workflow
+├── data/
+│   ├── raw/                         # Raw HTML/JSON staged responses (gitignored)
+│   └── processed/                   # SQLite relational databases (gitignored)
+├── docs/
+│   └── images/                      # Portfolio screenshots and documentation assets
+│       ├── fpl-dashboard.png
+│       ├── fpl-historical-dashboard.png
+│       ├── excel-report-books.png
+│       ├── pdf-report-books.png
+│       └── github-actions.png
+├── reports/
+│   └── exports/                     # Generated Excel and PDF deliverables (gitignored)
+├── src/
+│   ├── analytics/
+│   │   ├── book_analytics.py        # Pandas analytics engine for books catalog
+│   │   ├── fpl_analytics.py         # Current-state FPL analytics engine
+│   │   └── fpl_historical_analytics.py # Multi-run delta & momentum engine
+│   ├── dashboard/
+│   │   ├── fpl_dashboard.py         # Streamlit interactive web application
+│   │   └── fpl_dashboard_service.py # Decoupled UI filtering & presentation helper
+│   ├── models/
+│   │   ├── book.py                  # Pydantic v2 domain model for books
+│   │   └── fpl_player.py            # Pydantic v2 domain model for FPL players
+│   ├── pipeline/
+│   │   ├── book_pipeline.py         # End-to-end Books ingestion orchestrator
+│   │   └── fpl_pipeline.py          # End-to-end FPL ingestion orchestrator
+│   ├── reporting/
+│   │   ├── excel_report.py          # Professional multi-sheet Excel generator
+│   │   └── pdf_report.py            # Publication-quality ReportLab PDF generator
+│   ├── scraper/
+│   │   ├── base_scraper.py          # Abstract base scraper interface
+│   │   ├── book_scraper.py          # Concrete Books HTML pagination scraper
+│   │   ├── exceptions.py            # Typed domain exception hierarchy
+│   │   ├── fpl_scraper.py           # Concrete FPL API extraction scraper
+│   │   ├── http_client.py           # Resilient HTTP client with retry logic
+│   │   └── parser.py                # BeautifulSoup encapsulation helper
+│   └── storage/
+│       ├── fpl_storage.py           # FPL SQLite storage (current + historical)
+│       ├── raw_storage.py           # Filesystem raw payload staging
+│       └── sqlite_storage.py        # Books SQLite storage (upserts)
+├── tests/
+│   ├── test_book_scraper.py         # Scraper & pagination unit tests
+│   ├── test_dashboard.py            # Dashboard service & filter tests
+│   ├── test_excel_report.py         # Excel generation & formatting tests
+│   ├── test_fpl.py                  # FPL pipeline, model & storage tests
+│   ├── test_fpl_historical_analytics.py # Delta & momentum calculation tests
+│   ├── test_models.py               # Pydantic schema validation tests
+│   ├── test_pdf_report.py           # PDF report layout & pagination tests
+│   ├── test_pipeline.py             # Pipeline orchestration mock tests
+│   ├── test_raw_storage.py          # Raw storage filesystem tests
+│   ├── test_scraper.py              # HTTPClient & BaseScraper tests
+│   ├── test_sqlite_storage.py       # SQLite schema & upsert tests
+│   └── test_workflow_configuration.py # GitHub Actions workflow validation tests
+├── .gitignore                       # Production repository hygiene exclusions
+├── requirements.txt                 # Project dependencies
+└── README.md                        # Project documentation & portfolio showcase
 ```
-FPL SQLite Database (data/processed/fpl.db)
-       │
-       ▼
-[ FPLStorage ] (connection & schema lifecycle)
-       │
-       ▼
-[ FPLAnalytics ] (vectorized pandas aggregations & quality audit)
-       │
-       ▼
-[ Dashboard Service Helpers ] (filtering criteria & player cards)
-       │
-       ▼
-[ Streamlit Web Application ] (reactive UI, cached data bundle)
-```
 
-### 🌟 Key Dashboard Features
-1. **Executive KPI Scorecard**: Total Players, Average Price (£m), Total Points, Average Points, Highest Points, Average Ownership (%).
-2. **Interactive Filters**: Dynamic sidebar filtering by Position, Club/Team, Availability Status, Price Slider, Minimum Ownership (%), and Minimum Minutes Played.
-3. **Top Player Leaderboards**: Tabbed views for Total Points, Value (Points per Million), Current Form, Goals Scored, and Assists, with configurable display depth (Top 5, 10, 20).
-4. **Value Efficiency Analysis**:
-   - Interactive scatter plot mapping **Player Price vs Total Points** with position coloring and value scaling.
-   - Ranked table of top value assets providing maximum points per million budget spend.
-5. **Team & Position Performance**: Bar charts and drill-down tables detailing aggregate points and average prices by club and role.
-6. **Individual Player Explorer**: Interactive dropdown selector displaying detailed statistical scorecards (Form, GW Points, Goals, Assists, Clean Sheets, Minutes, Bonus).
-7. **Data Quality & Technical Status**: Secondary expander monitoring database path, last scrape timestamp, dataset health, and automated null/duplicate validation checks.
-8. **Graceful Empty & Error States**: Detects missing or empty databases cleanly with instructions to run the extraction pipeline rather than throwing raw Python stack traces.
-9. **Historical Trends & Longitudinal Analysis (Phase 13)**: Top-level view mode switcher (`Current Performance` vs `Historical Trends`), run comparison cards, price rises/drops tables, percentage-point ownership shifts, points/form acceleration, transparent momentum scoring, player timeline progression chart (`st.line_chart`), macro team/position delta comparisons, and historical storage audit.
+*Note on Generated Files*: All output artifacts (`data/raw/*`, `data/processed/*`, and `reports/exports/*`) are preserved locally during execution but excluded from version control via [`.gitignore`](file:///.gitignore) to maintain repository hygiene.
 
-### 🚀 Launching the Dashboard Locally
+---
+
+## Data Quality and Reliability
+
+Enterprise data engineering requires defense-in-depth against incomplete, malformed, or drifting external data:
+
+- **Strict Type Enforcement**: Inbound payloads are validated against Pydantic models before touching persistence layers. Non-conforming attributes raise descriptive validation errors rather than silently propagating corrupt data.
+- **Invalid Record Isolation**: The pipeline isolates invalid records during validation, logging specific validation failure reasons while continuing to process valid items.
+- **Resilient Network Handling**: `HTTPClient` intercepts transient connection failures and HTTP status codes `429` (Too Many Requests), `500`, `502`, `503`, and `504`, performing exponential backoff before failing.
+- **Raw Data Preservation**: Staging raw, unparsed payloads (`.html` and `.json`) ensures full auditability and enables schema backtesting without re-querying external sources.
+- **Idempotency & Upsert Logic**: Relational database operations utilize parameterized queries with `ON CONFLICT` constraints, guaranteeing that re-running pipelines updates existing records without creating duplicates.
+- **Historical Snapshot Immutability**: Historical snapshots are appended under unique run IDs, protecting longitudinal records from accidental mutation.
+- **Graceful Empty State Handling**: Downstream consumers (Analytics, Excel, PDF, and Streamlit) gracefully detect missing or unpopulated databases, presenting informative empty-state notifications rather than throwing unhandled exceptions.
+- **Deterministic Concurrency Control**: GitHub Actions prevents concurrent workflow runs from creating competing state artifacts through strict concurrency group serialization.
+
+---
+
+## Key Design Decisions
+
+1. **Analytics Decoupled from UI & Reporting**: All calculations (averages, price-to-points value, momentum, delta metrics) live in dedicated Pandas analytics modules. Neither the Streamlit dashboard nor the Excel/PDF reporters contain SQL queries or analytical business logic.
+2. **Raw Staging Separated from Relational Persistence**: Raw source responses are preserved as immutable files on disk prior to parsing. This decouples data ingestion from schema definitions and provides an audit trail.
+3. **Dual Persistence for Real-Time & Historical Access**: The FPL pipeline maintains both a live current-state table (`fpl_players`) for sub-second dashboard lookups and an append-only snapshot table (`fpl_player_snapshots`) for longitudinal analytics.
+4. **No Database Checked into Version Control**: Ephemeral SQLite databases (`*.db`) and generated deliverables (`*.xlsx`, `*.pdf`) are excluded from Git history via `.gitignore`, following production engineering best practices.
+5. **State Restoration via Workflow Artifacts**: To achieve historical continuity on ephemeral GitHub Actions runners without maintaining a cloud database, state is persisted and restored across runs using verified GitHub Actions artifacts.
+
+---
+
+## Limitations & Engineering Realities
+
+Demonstrating engineering maturity requires being transparent about system trade-offs:
+
+- **Public Endpoint Availability**: The FPL pipeline depends on the availability and structure of the official Fantasy Premier League endpoint. Unannounced API schema updates would require adjustments in `FPLScraper`.
+- **Workflow Artifact Storage vs. Cloud Database**: Preserving SQLite state via GitHub Actions artifacts demonstrates stateful continuity without cloud infrastructure costs. However, in enterprise multi-user environments, a managed cloud database (e.g. Amazon RDS PostgreSQL) would replace artifact downloads to eliminate concurrency constraints.
+- **Target Anti-Bot Defenses**: Books to Scrape is a public testing sandbox intentionally devoid of aggressive anti-bot protections (Cloudflare, CAPTCHAs). In heavily protected commercial scraping scenarios, additional techniques (browser automation via Playwright, proxy rotation, and session management) would be required.
+- **Local Dashboard Hosting**: Streamlit is currently executed locally or in containerized environments. Deploying to Streamlit Community Cloud or an AWS ECS container would make the dashboard publicly accessible to remote clients.
+
+---
+
+## Future Roadmap
+
+- **Cloud Database Migration**: Transition storage from local SQLite files to a hosted PostgreSQL instance (e.g. AWS RDS or Supabase) with connection pooling.
+- **Object Storage for Raw Payloads**: Stage raw JSON and HTML payloads into an Amazon S3 or Google Cloud Storage bucket with automated lifecycle policies.
+- **Cloud Dashboard Deployment**: Host the interactive Streamlit dashboard on a persistent cloud container environment with automated cache revalidation.
+- **Proactive Alerts & Notifications**: Add automated Slack or email webhook notifications triggering when the pipeline detects notable player price changes or execution anomalies.
+- **Additional Data Domains**: Expand the scraper foundation to ingest fixture difficulty rankings, underlying expected stats (xG/xA), and weather forecasts.
+
+---
+
+## Portfolio & Client Engagement Relevance
+
+This repository provides a concrete, end-to-end demonstration of capabilities directly applicable to freelance client engagements and full-time data engineering roles:
+
+- **Automated Web & API Data Collection**: Building resilient scrapers that extract data from dynamic websites and REST APIs without manual intervention.
+- **Data Cleaning, Normalization & ETL**: Transforming unstructured web data into structured, validated tabular formats ready for downstream consumption.
+- **Custom Spreadsheet Deliverables**: Delivering formatted, multi-tab Excel workbooks (`.xlsx`) complete with styling, formulas, and charts tailored to business stakeholders.
+- **Automated PDF Briefs & Reports**: Generating scheduled, publication-quality executive reports summarizing business metrics and performance trends.
+- **Interactive Dashboards & Business Intelligence**: Rapidly developing web-based analytical dashboards with intuitive filtering and visual analytics.
+- **Historical Monitoring & Market Tracking**: Capturing point-in-time snapshots to identify competitor price adjustments, inventory shifts, or market trends.
+- **Cloud Automation & Hands-Off Workflows**: Deploying scheduled, automated pipelines that run unattended with error handling and monitoring.
+
+---
+
+## Quickstart & CLI Commands
+
+### 1. Setup Environment
 ```bash
-# 1. Ensure the FPL pipeline has extracted and stored records
-python -m src.pipeline.fpl_pipeline --save-raw
+# Clone the repository
+git clone https://github.com/diasclyde92/fpl-data-automation-portfolio.git
+cd web-scraping-data-pipeline
 
-# 2. Launch the Streamlit application
+# Create and activate virtual environment
+python -m venv venv
+# On Windows:
+.\venv\Scripts\activate
+# On Linux/macOS:
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### 2. Run Ingestion Pipelines
+```bash
+# Execute FPL pipeline (extracts API data, stages raw JSON, updates SQLite)
+python -m src.pipeline.fpl_pipeline --save-raw --verbose
+
+# Execute Books pipeline (scrapes catalog, stages raw HTML, updates SQLite)
+python -m src.pipeline.book_pipeline --max-pages 2 --save-raw --verbose
+```
+
+### 3. Run Analytics & Generate Reports
+```bash
+# Run FPL historical trend analytics (displays top price & ownership movers)
+python -m src.analytics.fpl_historical_analytics --top-n 5
+
+# Generate formatted Excel report (saved to reports/exports/books_analytics_report.xlsx)
+python -m src.reporting.excel_report
+
+# Generate executive PDF report (saved to reports/exports/books_analytics_report.pdf)
+python -m src.reporting.pdf_report
+```
+
+### 4. Launch Interactive Web Dashboard
+```bash
 streamlit run src/dashboard/fpl_dashboard.py
 ```
 
----
-
-## 🕒 Historical Snapshot & Pipeline Run Storage (Phase 11)
-
-In Phase 11, the FPL pipeline evolved from an ephemeral current-state overwriting store into an **immutable, append-only historical snapshot repository** while preserving the current-state table for the live dashboard.
-
-### 🏛️ Dual Persistence Architecture
-```
-                         Official FPL API
-                                │
-                                ▼
-                           FPLPipeline
-                                │
-                                ▼
-                       FPLPlayer Validation
-                                │
-                     Run ID (e.g. fpl_20261006_083932)
-                                │
-          ┌─────────────────────┴─────────────────────┐
-          │                                           │
-          ▼                                           ▼
-[ Current State Table ]                     [ Run Audit & Snapshots ]
-      fpl_players                                   fpl_runs
- (ON CONFLICT DO UPDATE)                      (execution audit log)
-          │                                           │
-          ▼                                           ▼
-    FPLAnalytics                            fpl_player_snapshots
- (vectorized pandas)                     (append-only immutable store)
-          │                                 (UNIQUE on run_id, player_id)
-          ▼                                           │
-   Streamlit Dashboard                                ▼
- (current-state viewer)                  Future Historical Analytics
-                                            & Trend Detection
-```
-
-### 🗄️ Relational Schema
-
-#### 1. Pipeline Run Audit Table (`fpl_runs`)
-Tracks execution health, record counts, and elapsed duration:
-```sql
-CREATE TABLE IF NOT EXISTS fpl_runs (
-    run_id TEXT PRIMARY KEY,
-    scraped_at TEXT NOT NULL,
-    source TEXT NOT NULL,
-    records_extracted INTEGER NOT NULL DEFAULT 0,
-    records_valid INTEGER NOT NULL DEFAULT 0,
-    records_invalid INTEGER NOT NULL DEFAULT 0,
-    records_persisted INTEGER NOT NULL DEFAULT 0,
-    status TEXT NOT NULL DEFAULT 'started',
-    duration_seconds REAL,
-    error_message TEXT
-);
-```
-
-#### 2. Immutable Historical Snapshots (`fpl_player_snapshots`)
-Stores complete player statistics per execution run:
-```sql
-CREATE TABLE IF NOT EXISTS fpl_player_snapshots (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    run_id TEXT NOT NULL,
-    player_id INTEGER NOT NULL,
-    first_name TEXT NOT NULL,
-    second_name TEXT NOT NULL,
-    web_name TEXT NOT NULL,
-    team TEXT NOT NULL,
-    position TEXT NOT NULL,
-    price REAL NOT NULL,
-    total_points INTEGER NOT NULL,
-    event_points INTEGER NOT NULL,
-    selected_by_percent REAL NOT NULL,
-    goals INTEGER NOT NULL,
-    assists INTEGER NOT NULL,
-    clean_sheets INTEGER NOT NULL,
-    minutes INTEGER NOT NULL,
-    bonus INTEGER NOT NULL,
-    form REAL NOT NULL,
-    status TEXT NOT NULL,
-    scraped_at TEXT NOT NULL,
-    UNIQUE(run_id, player_id),
-    FOREIGN KEY(run_id) REFERENCES fpl_runs(run_id)
-);
-```
-
-### 🔒 Immutability & Duplicate Protection
-- **Append-Only History**: Successive pipeline runs append new player snapshot records under new timestamped `run_id`s without modifying or deleting prior run snapshots.
-- **Idempotency**: The `UNIQUE(run_id, player_id)` constraint paired with `INSERT OR IGNORE` ensures pipeline retries or accidental re-executions cannot duplicate data within the same run.
-- **Atomic Operations**: `FPLStorage.save_current_and_snapshots()` persists both the current-state upsert and the historical snapshot insert within a single database transaction.
-
-### 🧪 Two-Run Verification
-Executing the pipeline sequentially verifies dual persistence and snapshot immutability:
-- **Run 1 (`fpl_20261006_083932`)**: Extracted 667 $\to$ `fpl_players` (667) $\to$ `fpl_runs` (1) $\to$ `fpl_player_snapshots` (667).
-- **Run 2 (`fpl_20261006_083956`)**: Extracted 667 $\to$ `fpl_players` (667 updated) $\to$ `fpl_runs` (2) $\to$ `fpl_player_snapshots` (1,334 total, 667 per run).
-- Prior snapshots from Run 1 remain unaltered, providing a complete historical foundation for future time-series analytics and trend detection.
-
----
-
-## 📈 Historical Trend & Change Analytics (Pandas - Phase 12)
-
-The [`FPLHistoricalAnalytics`](file:///src/analytics/fpl_historical_analytics.py) component consumes immutable snapshot data from `fpl_player_snapshots` and execution metadata from `fpl_runs` to compute delta metrics, identify market movements, and provide longitudinal player tracking.
-
-### 🏛️ Historical Analytics Architecture
-```
-                         Official FPL API
-                                │
-                                ▼
-                           FPLPipeline
-                                │
-                    Current State + History
-                                │
-        ┌───────────────────────┴───────────────────────┐
-        ▼                                               ▼
-   fpl_players                                fpl_player_snapshots
- (current state)                             (immutable run history)
-        │                                               │
-        ▼                                               ▼
-   FPLAnalytics                               FPLHistoricalAnalytics
- (vectorized pandas)                           (run-to-run delta engine)
-        │                                               │
-        ▼                                               ▼
-Streamlit Dashboard                             Future Historical Dashboard
-  (current viewer)                                (trends, charts & movers)
-```
-
-### 🔍 Key Metrics & Analytical Capabilities
-1. **Run Comparison Engine**: Compares arbitrary pairs of runs (or automatically resolves latest vs previous completed execution) computing exact deltas defined as:
-   $$\text{Delta} = \text{Latest Value} - \text{Previous Value}$$
-2. **Price Movers**: Identifies top price rises and drops (£m) across gameweeks.
-3. **Ownership Shifts**: Computes absolute percentage point (`pp`) ownership changes (e.g., $25.0\% \to 28.0\%$ is $+3.00\text{ pp}$), avoiding misleading relative ratios.
-4. **Performance & Form Risers**: Tracks total season points gains vs gameweek/event scoring, along with rolling form acceleration.
-5. **Value Efficiency (PPM) Trajectories**: Evaluates points-per-million return improvements (${\text{Points}}/{\text{Price}}$) over time.
-6. **Transparent Momentum Scoring**: Evaluates rising and falling assets via clear linear formulas:
-   $$\text{Momentum Score} = (2.0 \times \Delta\text{Ownership}_{\text{pp}}) + (1.0 \times \Delta\text{Form}) + (0.5 \times \Delta\text{Value})$$
-7. **Player Timeline Extraction**: Generates chronological time-series DataFrames for individual player IDs (`get_player_history(player_id)`).
-8. **Team & Position Macro Trends**: Aggregates points, average squad costs, and player counts across runs by club and position.
-9. **Technical Historical Quality Audit**: Validates run counts, snapshot integrity, absence of orphan snapshots, and lack of duplicate `(run_id, player_id)` combinations.
-
-### 💻 Running the Historical Analytics CLI
+### 5. Run Test Suite
 ```bash
-# Compare latest completed run with previous run
-python -m src.analytics.fpl_historical_analytics
-
-# Compare specific runs with configurable top N depth
-python -m src.analytics.fpl_historical_analytics --top-n 10 --db-path data/processed/fpl.db
-
-# Inspect full historical snapshot timeline for a specific player ID
-python -m src.analytics.fpl_historical_analytics --player-id 1
+pytest -v
 ```
-
----
-
-## ⚙️ Automated FPL Historical Pipeline (GitHub Actions - Phase 14)
-
-The pipeline is automated via a production-style CI/CD workflow defined in [`.github/workflows/fpl_pipeline.yml`](file:///.github/workflows/fpl_pipeline.yml).
-
-### 🔄 Automation Architecture & Persistence Strategy
-```
-GitHub Actions Runner (ubuntu-latest)
-       │
-       ▼
-1. Checkout & Python 3.12 Setup
-       │
-       ▼
-2. Download Previous Artifact (`fpl-database`)
-       ├── If found: Restores data/processed/fpl.db
-       └── If first run: Initializes fresh historical store
-       │
-       ▼
-3. Execute Pipeline CLI
-       python -m src.pipeline.fpl_pipeline --save-raw --verbose
-       │
-       ▼
-4. Run Verification & Historical Analytics Check
-       python -m src.analytics.fpl_historical_analytics --top-n 5
-       │
-       ▼
-5. Upload Updated Artifacts (30-day retention)
-       ├── `fpl-database`: data/processed/fpl.db (updated state)
-       └── `fpl-raw-snapshot`: data/raw/fpl/ (immutable raw JSON)
-```
-
-### 🕒 Workflow Triggers
-- **Scheduled Trigger**: Runs daily at `06:00 UTC` via standard cron (`0 6 * * *`).
-- **Manual Trigger**: Supports immediate on-demand execution via GitHub's `workflow_dispatch` button.
-
-### 💾 Artifact-Based Database Continuity
-- **Stateless Runners vs Stateful Data**: Because GitHub Actions runners start fresh on every execution and generated databases are kept outside of Git history (`.gitignore`), the workflow downloads the previous `fpl-database` artifact before execution.
-- **Continuous Historical Accumulation**: When the pipeline executes, it appends the new snapshot to the restored database and immediately uploads the updated `fpl.db` back as an artifact with 30-day retention. Subsequent scheduled runs restore this state, enabling continuous multi-run trends.
-- **First-Run Resilience**: The artifact download step specifies `continue-on-error: true`. If no previous artifact exists (such as on the initial workflow run), the pipeline initializes a clean database without failing.
-- **Repository Hygiene**: Neither the SQLite database (`fpl.db`) nor raw JSON payloads pollute Git commits, strictly preserving production data engineering hygiene.
-
----
-
-## 📊 Relational Data Analytics (Phase 6)
-
-The [`BookAnalytics`](file:///src/analytics/book_analytics.py) component loads SQLite records into typed Pandas DataFrames and computes business metrics without executing ad-hoc queries across reporting scripts.
-
-### 📈 Metrics & Insights Calculated
-1. **Descriptive Statistics**: Total book count, average price, median price, minimum price, maximum price, and average star rating.
-2. **Frequency Distributions**:
-   - Star rating distribution ($1\dots5$ stars).
-   - Stock availability breakdown (`"In stock"`, `"Out of stock"`).
-3. **Product Rankings**: Top $N$ most expensive books, bottom $N$ least expensive books, and top-rated books (tie-broken by price).
-4. **Data Quality Audit**: Checks for missing prices, unrated records, blank availability strings, duplicate detail URLs, and empty datasets.
-
-### 💻 Running the Analytics CLI
-Analyze the local SQLite database and view formatted summary metrics:
-
-```bash
-python -m src.analytics.book_analytics
-
-# Run against custom database location
-python -m src.analytics.book_analytics --db-path data/processed/books.db
-```
-
----
-
-## 📑 Professional Excel Reporting Layer (Phase 7)
-
-Freelance clients frequently demand polished, spreadsheet deliverables (`.xlsx`) ready for stakeholder presentation rather than raw CSV dumps or command-line logs.
-
-The [`ExcelReport`](file:///src/reporting/excel_report.py) component consumes structured analytics from [`BookAnalytics`](file:///src/analytics/book_analytics.py) and builds an executive, multi-worksheet workbook using `openpyxl`.
-
-### 🗂️ Workbook Structure & Worksheets
-1. **Summary**: Executive dashboard with high-level KPI cards (Total Books, Average Price, Median Price, Min/Max Price, Average Rating), data health diagnostics (empty status, missing attributes, duplicate checks), and top 5 price and rating leaderboards.
-2. **Books Data**: Clean tabular representation of the raw catalog with freeze panes (`A2`), auto-filters (`A1:G41`), currency number formatting (`£#,##0.00`), date/time formatting, and clickable hyperlinks for detail URLs.
-3. **Price Analysis**: Pricing metrics table, top 10 most expensive items, top 10 least expensive items, and an embedded column chart (`openpyxl.chart.BarChart`) comparing prices.
-4. **Rating Analysis**: Rating frequency counts ($1\dots5$ stars), share of total percentage formatting (`0.0%`), and a native rating distribution column chart.
-5. **Availability**: Inventory breakdown table displaying stock status categories, absolute item counts, and percentage shares.
-
-### 🎨 Design & Formatting Highlights
-- **Executive Navy Palette**: Consistent typography (`Segoe UI`), restrained navy headers (`#24426B`), alternating row zebra striping (`#F9FBFC`), and clear borders.
-- **Graceful Empty State**: Handles empty databases cleanly without crashing—generates valid sheets indicating `"EMPTY"` status with headers intact and zero fabricated data.
-- **Decoupled Architecture**: Reporting only handles Excel presentation; zero web requests, SQL queries, or business calculation duplication.
-
-### 💻 Running the Excel Report Generator CLI
-Generate the client deliverable directly:
-
-```bash
-# Generate report from default SQLite DB to reports/exports/books_analytics_report.xlsx
-python -m src.reporting.excel_report
-
-# Custom input DB and output destination
-python -m src.reporting.excel_report \
-    --db-path data/processed/books.db \
-    --output reports/exports/books_analytics_report.xlsx
-```
-
----
-
-## 📄 Automated PDF Executive Briefing (Phase 8)
-
-For stakeholders requiring a print-ready or attachable business memorandum, the [`PDFReport`](file:///src/reporting/pdf_report.py) component compiles [`BookAnalytics`](file:///src/analytics/book_analytics.py) metrics into a multi-page PDF briefing using `reportlab` Platypus flowables.
-
-### 📑 Document Sections & Layout
-- **Page 1: Executive Summary & Scorecard**:
-  - Title banner, generation timestamp, and data source metadata.
-  - **Dynamic Narrative Insights**: Context-rich English paragraphs computed on-the-fly from analytics metrics (catalog size, price spreads, dominant ratings, stock allocation percentages).
-  - **KPI Scorecard**: Styled grid detailing Mean Price, Median Price, Range, Average Rating, and total items.
-  - **Quick Highlights Table**: Highlights highest/lowest catalog items and pipeline governance status.
-- **Page 2: Price Valuation & Spectrum Analysis**:
-  - **Visual Price Chart**: Embedded native ReportLab vector graphic (`Drawing` with horizontal bars) comparing top premium book prices.
-  - **Ranked Tables**: Detailed rankings for Top 5 Most Expensive and Top 5 Least Expensive books with automatic title text wrapping.
-- **Page 3: Customer Ratings, Inventory & Governance**:
-  - **Customer Rating Distribution**: Star rating breakdown ($1\dots5$ stars) with counts, percentage shares, and star icons.
-  - **Inventory Allocation Table**: Stock status breakdown with strategic operational interpretations.
-  - **Technical Pipeline Quality & Anomaly Report**: Production health audit confirming zero missing prices, valid ratings, and zero duplicate URLs.
-- **Header & Footer Pagination**: Two-pass canvas (`NumberedCanvas`) dynamically calculating running headers and `"Page X of Y"` footers with confidentiality markers.
-
-### 💻 Running the PDF Report Generator CLI
-Generate the executive PDF report directly:
-
-```bash
-# Generate PDF from default SQLite DB to reports/exports/books_analytics_report.pdf
-python -m src.reporting.pdf_report
-
-# Custom database input and PDF export destination
-python -m src.reporting.pdf_report \
-    --db-path data/processed/books.db \
-    --output reports/exports/books_analytics_report.pdf
-```
-
-*(Note: Interactive web dashboard visualization and automated scheduling via GitHub Actions will follow in subsequent phases.)*
-
----
-
-## 🗄️ Relational Schema & Persistence (Phase 5)
-
-### SQLite Schema (`books` table)
-```sql
-CREATE TABLE IF NOT EXISTS books (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL,
-    price REAL NOT NULL,
-    rating INTEGER,
-    availability TEXT NOT NULL,
-    detail_url TEXT NOT NULL UNIQUE,
-    scraped_at TEXT NOT NULL
-);
-```
-
-### 🔄 Duplicate Handling Strategy (Upsert)
-To handle repeated pipeline runs over dynamic web targets without generating uncontrolled duplicates, the schema enforces a `UNIQUE` constraint on `detail_url`. 
-
-Records are persisted using SQLite's atomic upsert:
-```sql
-INSERT INTO books (title, price, rating, availability, detail_url, scraped_at)
-VALUES (?, ?, ?, ?, ?, ?)
-ON CONFLICT(detail_url) DO UPDATE SET
-    title = excluded.title,
-    price = excluded.price,
-    rating = excluded.rating,
-    availability = excluded.availability,
-    scraped_at = excluded.scraped_at;
-```
-If a previously scraped book has a price change or rating update in subsequent runs, the row is updated in-place with the latest information and timestamp rather than duplicated.
-
----
-
-## 💻 Running the Pipeline CLI
-
-Execute the complete end-to-end pipeline (scrape $\rightarrow$ validate $\rightarrow$ SQLite):
-
-```bash
-# Scrape 2 pages, validate, and persist to data/processed/books.db
-python -m src.pipeline.book_pipeline --max-pages 2 --save-raw --verbose
-
-# Run with custom database destination
-python -m src.pipeline.book_pipeline --max-pages 1 --db-path data/processed/test.db
-```
-
-### Sample CLI Output
-```text
-============================================================
-Book Data Pipeline Execution Summary
-============================================================
-Pages scraped:       2
-Records extracted:   40
-Valid records:       40
-Invalid records:     0
-Records persisted:   40
-Database:            data/processed/books.db
-Raw data run ID:     books_20261006_044537
-============================================================
-```
-
----
-
-## 🏗️ Scraping Foundation Architecture
-
-The scraping layer is designed around clean separation of concerns and decoupled responsibilities:
-
-```
-┌────────────────────────────────────────────────────────┐
-│                      HTTPClient                        │
-│   • Configurable timeouts & custom User-Agent          │
-│   • Transient retry handling (429, 5xx, timeouts)      │
-│   • Structured standard-library logging                │
-└──────────────────────────┬─────────────────────────────┘
-                           │ fetch(url) -> HTML
-                           ▼
-┌────────────────────────────────────────────────────────┐
-│                      BaseScraper                       │
-│   • Enforces standard pipeline lifecycle:              │
-│     fetch (URL) -> parse (HTML) -> extract (Data)      │
-│   • Completely decoupled from specific websites        │
-└─────────────┬────────────────────────────┬─────────────┘
-              │                            │
-              ▼                            ▼
-┌───────────────────────────┐ ┌──────────────────────────┐
-│        HTML Parser        │ │ Concrete Scraper Impl    │
-│  (BeautifulSoup / DOM)    │ │ (e.g. FPLScraper)        │
-│  • Tag extraction helper  │ │ • Domain extraction      │
-│  • Typed error handling   │ │ • Yields structured data │
-└───────────────────────────┘ └──────────────────────────┘
-```
-
-- **[HTTPClient](file:///src/scraper/http_client.py)**: Manages network communication, exponential backoff for transient issues (`429`, `5xx`, connection dropped), and standard logging.
-- **[BaseScraper](file:///src/scraper/base_scraper.py)**: Orchestrates the `fetch -> parse -> extract` template method. Concrete scrapers only need to implement the domain-specific `extract(soup)` method.
-- **[HTML Parser](file:///src/scraper/parser.py)**: Encapsulates BeautifulSoup interaction and isolates parsing exceptions.
-- **[Exceptions](file:///src/scraper/exceptions.py)**: Provides a clean hierarchy (`ScraperError`, `RequestError`, `ParsingError`) avoiding untyped or silent failures.
-
----
-
-## 📖 First Concrete Scraper: BookScraper
-
-To prove the extensibility of `BaseScraper` and the reliability of `HTTPClient`, a concrete implementation—[`BookScraper`](file:///src/scraper/book_scraper.py)—was developed against a stable, public sandbox.
-
-### 🌐 Source Website
-- **Target**: [Books to Scrape](http://books.toscrape.com/)
-- **Rationale**: An established, freely accessible web-scraping sandbox specifically maintained for testing extraction pipelines. It requires no authentication or bypass mechanisms and permits respectful automated inspection.
-
-### 🔍 Data Fields Extracted
-Each item is normalized into a structured dictionary containing 5 fields:
-1. `title` (`str`): Full unclipped book title extracted from the link tag.
-2. `price` (`float | None`): Parsed numerical price in GBP (stripped of currency symbols).
-3. `rating` (`int | None`): Mapped integer rating on a scale from 1 to 5.
-4. `availability` (`str`): Standardized whitespace-clean stock status (e.g. `"In stock"`).
-5. `detail_url` (`str`): Fully qualified, absolute URL to the product's detail page.
-
-### 📦 Example Output Structure
-```json
-{
-  "title": "A Light in the Attic",
-  "price": 51.77,
-  "rating": 3,
-  "availability": "In stock",
-  "detail_url": "http://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html"
-}
-```
-
-### 💻 How to Run It
-Run the CLI runner to scrape the catalog, control pagination limits, and optionally preserve raw HTML:
-
-```bash
-# Basic run (1 page, in-memory)
-python -m src.scraper.book_scraper
-
-# Traverse 3 pages and preserve raw HTML responses
-python -m src.scraper.book_scraper --max-pages 3 --save-raw --verbose
-```
-
-### 🔄 Pagination & Raw Data Architecture
-
-```
-                  Target Website (HTML)
-                           │
-                           ▼
-                      HTTPClient (retries, timeouts, headers)
-                           │
-                           ▼
-                      BookScraper (traverses pagination controls)
-                     ┌─────┴────────────────────────┐
-                     ▼                              ▼
-             Structured Records             Raw HTML Responses
-            (clean in-memory dicts)                 │
-                                                    ▼
-                                          [ RawStorage Component ]
-                                                    │
-                                                    ▼
-                                          data/raw/books/<run_id>/
-                                              ├── page_001.html
-                                              ├── page_002.html
-                                              └── ...
-```
-
-### 💾 Why Preserve Raw Data?
-In enterprise web-scraping and ETL pipelines, raw HTML preservation provides three critical business safeguards:
-1. **Auditability**: Verifies exactly what was visible at scrape time if a client questions a price or record.
-2. **Reprocessing Without Re-scraping**: Allows modifying downstream parsers or extracting additional fields without incurring additional network traffic or hitting target rate limits.
-3. **Debugging Edge Cases**: Provides exact HTML fixtures when upstream website structure drifts or triggers parsing errors.
-
-### 📁 Raw Data Directory Structure
-Saved under `data/raw/<dataset>/<run_id>/` (tracked via `.gitkeep` and excluded in `.gitignore`):
-```text
-data/raw/
-└── books/
-    └── books_20261006_041630/
-        ├── page_001.html
-        └── page_002.html
-```
-
-### 🧪 Testing Approach
-- **Deterministic Unit Tests**: 
-  - [`tests/test_book_scraper.py`](file:///tests/test_book_scraper.py): Multi-record parsing, relative URL normalization, 2-page pagination traversal, max page limits, malformed/missing next links, cyclic pagination loop detection, and raw storage integration with `tmp_path`.
-  - [`tests/test_raw_storage.py`](file:///tests/test_raw_storage.py): Run ID timestamp generation, directory creation, UTF-8 multi-page saving, and filesystem error handling.
-  - [`tests/test_scraper.py`](file:///tests/test_scraper.py): HTTP client timeouts, retries, and base scraper contracts.
-- **Isolated Integration Test**: [`tests/test_integration_scraper.py`](file:///tests/test_integration_scraper.py) tests real extraction against the live site (`-m integration`).
-
-### ⚠️ Limitations & Notes
-- Raw HTML is saved as individual UTF-8 files per page.
-- Database storage and data transformation/validation (e.g. SQLite and pandas) will be introduced in subsequent phases.
-
----
-
-## 📊 Dashboard & Reports Preview
-
-<!-- Placeholder for screenshots of generated deliverables -->
-*Screenshots and live dashboard links will be added in upcoming phases.*
-
-- **Live Dashboard**: *Coming soon*
-- **Sample Excel Report**: *Coming soon*
-- **Sample PDF Report**: *Coming soon*
-
----
-
-## 📝 Portfolio Note
-
-*This repository is built as a portfolio and demonstration project exhibiting production-style software engineering and data automation practices for client engagements.*
