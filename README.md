@@ -443,3 +443,9 @@ streamlit run src/dashboard/fpl_dashboard.py
 ```bash
 pytest -v
 ```
+
+---
+
+## License
+
+This project's source code is licensed under the [MIT License](LICENSE). Third-party data accessed by the demonstration pipelines remains the property of its respective owners.
