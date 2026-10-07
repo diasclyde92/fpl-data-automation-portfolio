@@ -562,3 +562,15 @@ class FPLStorage:
                 (player_id,),
             )
             return [dict(r) for r in cursor.fetchall()]
+
+    def get_all_snapshots(self) -> list[dict[str, Any]]:
+        """Retrieve all player snapshot records across all runs ordered by scraped_at ASC.
+
+        Returns:
+            List of dictionaries representing all historical snapshot records.
+        """
+        with self.get_connection() as conn:
+            cursor = conn.execute(
+                "SELECT * FROM fpl_player_snapshots ORDER BY scraped_at ASC, player_id ASC;"
+            )
+            return [dict(r) for r in cursor.fetchall()]

@@ -92,7 +92,9 @@ Web Source (HTML / API)
 - [x] **Phase 10: Web Dashboard Integration (Streamlit)**
 - [x] **Phase 11: Historical Snapshot Storage (FPL)**
   - Immutable historical player snapshots (`fpl_player_snapshots`), pipeline run audit log (`fpl_runs`), dual persistence (current state + historical snapshots), and idempotent transaction boundaries.
-- [ ] **Phase 12: Automation & CI/CD Pipeline**
+- [x] **Phase 12: Historical Trend & Change Analytics (Pandas)**
+  - Dedicated historical analytics layer (`FPLHistoricalAnalytics`): run-to-run deltas, price/ownership/form movers, points per million value trajectories, transparent momentum scoring, and individual player timelines.
+- [ ] **Phase 13: Automation & CI/CD Pipeline**
   - GitHub Actions workflow for scheduled headless execution and artifact archiving.
 
 ---
@@ -328,6 +330,60 @@ Executing the pipeline sequentially verifies dual persistence and snapshot immut
 - **Run 1 (`fpl_20261006_083932`)**: Extracted 667 $\to$ `fpl_players` (667) $\to$ `fpl_runs` (1) $\to$ `fpl_player_snapshots` (667).
 - **Run 2 (`fpl_20261006_083956`)**: Extracted 667 $\to$ `fpl_players` (667 updated) $\to$ `fpl_runs` (2) $\to$ `fpl_player_snapshots` (1,334 total, 667 per run).
 - Prior snapshots from Run 1 remain unaltered, providing a complete historical foundation for future time-series analytics and trend detection.
+
+---
+
+## 📈 Historical Trend & Change Analytics (Pandas - Phase 12)
+
+The [`FPLHistoricalAnalytics`](file:///src/analytics/fpl_historical_analytics.py) component consumes immutable snapshot data from `fpl_player_snapshots` and execution metadata from `fpl_runs` to compute delta metrics, identify market movements, and provide longitudinal player tracking.
+
+### 🏛️ Historical Analytics Architecture
+```
+                         Official FPL API
+                                │
+                                ▼
+                           FPLPipeline
+                                │
+                    Current State + History
+                                │
+        ┌───────────────────────┴───────────────────────┐
+        ▼                                               ▼
+   fpl_players                                fpl_player_snapshots
+ (current state)                             (immutable run history)
+        │                                               │
+        ▼                                               ▼
+   FPLAnalytics                               FPLHistoricalAnalytics
+ (vectorized pandas)                           (run-to-run delta engine)
+        │                                               │
+        ▼                                               ▼
+Streamlit Dashboard                             Future Historical Dashboard
+  (current viewer)                                (trends, charts & movers)
+```
+
+### 🔍 Key Metrics & Analytical Capabilities
+1. **Run Comparison Engine**: Compares arbitrary pairs of runs (or automatically resolves latest vs previous completed execution) computing exact deltas defined as:
+   $$\text{Delta} = \text{Latest Value} - \text{Previous Value}$$
+2. **Price Movers**: Identifies top price rises and drops (£m) across gameweeks.
+3. **Ownership Shifts**: Computes absolute percentage point (`pp`) ownership changes (e.g., $25.0\% \to 28.0\%$ is $+3.00\text{ pp}$), avoiding misleading relative ratios.
+4. **Performance & Form Risers**: Tracks total season points gains vs gameweek/event scoring, along with rolling form acceleration.
+5. **Value Efficiency (PPM) Trajectories**: Evaluates points-per-million return improvements (${\text{Points}}/{\text{Price}}$) over time.
+6. **Transparent Momentum Scoring**: Evaluates rising and falling assets via clear linear formulas:
+   $$\text{Momentum Score} = (2.0 \times \Delta\text{Ownership}_{\text{pp}}) + (1.0 \times \Delta\text{Form}) + (0.5 \times \Delta\text{Value})$$
+7. **Player Timeline Extraction**: Generates chronological time-series DataFrames for individual player IDs (`get_player_history(player_id)`).
+8. **Team & Position Macro Trends**: Aggregates points, average squad costs, and player counts across runs by club and position.
+9. **Technical Historical Quality Audit**: Validates run counts, snapshot integrity, absence of orphan snapshots, and lack of duplicate `(run_id, player_id)` combinations.
+
+### 💻 Running the Historical Analytics CLI
+```bash
+# Compare latest completed run with previous run
+python -m src.analytics.fpl_historical_analytics
+
+# Compare specific runs with configurable top N depth
+python -m src.analytics.fpl_historical_analytics --top-n 10 --db-path data/processed/fpl.db
+
+# Inspect full historical snapshot timeline for a specific player ID
+python -m src.analytics.fpl_historical_analytics --player-id 1
+```
 
 ---
 

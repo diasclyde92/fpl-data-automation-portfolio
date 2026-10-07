@@ -13,6 +13,13 @@ from src.analytics.fpl_analytics import (
     FPLSummaryStats,
 )
 
+from src.analytics.fpl_historical_analytics import (
+    FPLHistoricalAnalytics,
+    HistoricalAnalyticsResult,
+    HistoricalQualityReport,
+    HistoricalSummaryStats,
+)
+
 __all__ = [
     "BookAnalytics",
     "AnalyticsResult",
@@ -22,4 +29,8 @@ __all__ = [
     "FPLAnalyticsResult",
     "FPLSummaryStats",
     "FPLQualityReport",
+    "FPLHistoricalAnalytics",
+    "HistoricalAnalyticsResult",
+    "HistoricalSummaryStats",
+    "HistoricalQualityReport",
 ]
