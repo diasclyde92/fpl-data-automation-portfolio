@@ -117,3 +117,63 @@ def get_player_card_details(df: pd.DataFrame, player_id: int) -> dict[str, Any] 
         return None
 
     return matched.iloc[0].to_dict()
+
+
+def get_fpl_historical_bundle(
+    db_path: Path | str = "data/processed/fpl.db",
+    latest_run_id: str | None = None,
+    previous_run_id: str | None = None,
+    top_n: int = 10,
+) -> dict[str, Any]:
+    """Load historical runs, snapshot totals, and analytical trends.
+
+    Args:
+        db_path: Path to FPL SQLite database.
+        latest_run_id: Optional latest run ID.
+        previous_run_id: Optional previous run ID.
+        top_n: Number of records to extract for trend tables.
+
+    Returns:
+        Dictionary representation of HistoricalAnalyticsResult.
+    """
+    from src.analytics.fpl_historical_analytics import FPLHistoricalAnalytics
+
+    path_obj = Path(db_path)
+    if not path_obj.exists():
+        empty_hist = FPLHistoricalAnalytics(storage=None, db_path=path_obj)
+        return empty_hist.analyze().to_dict()
+
+    storage = FPLStorage(db_path=path_obj)
+    hist_analytics = FPLHistoricalAnalytics(storage=storage)
+    result = hist_analytics.analyze(
+        latest_run_id=latest_run_id,
+        previous_run_id=previous_run_id,
+        top_n=top_n,
+    )
+    return result.to_dict()
+
+
+def get_historical_player_timeline(
+    player_id: int,
+    db_path: Path | str = "data/processed/fpl.db",
+) -> pd.DataFrame:
+    """Retrieve individual player's chronological historical snapshots for charting.
+
+    Args:
+        player_id: Integer player ID.
+        db_path: Path to FPL SQLite database.
+
+    Returns:
+        pd.DataFrame sorted chronologically by scraped_at.
+    """
+    from src.analytics.fpl_historical_analytics import FPLHistoricalAnalytics
+
+    path_obj = Path(db_path)
+    if not path_obj.exists():
+        empty_hist = FPLHistoricalAnalytics(storage=None, db_path=path_obj)
+        return empty_hist.get_player_history(player_id=player_id)
+
+    storage = FPLStorage(db_path=path_obj)
+    hist_analytics = FPLHistoricalAnalytics(storage=storage)
+    return hist_analytics.get_player_history(player_id=player_id)
+

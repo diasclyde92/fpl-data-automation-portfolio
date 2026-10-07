@@ -227,6 +227,7 @@ FPL SQLite Database (data/processed/fpl.db)
 6. **Individual Player Explorer**: Interactive dropdown selector displaying detailed statistical scorecards (Form, GW Points, Goals, Assists, Clean Sheets, Minutes, Bonus).
 7. **Data Quality & Technical Status**: Secondary expander monitoring database path, last scrape timestamp, dataset health, and automated null/duplicate validation checks.
 8. **Graceful Empty & Error States**: Detects missing or empty databases cleanly with instructions to run the extraction pipeline rather than throwing raw Python stack traces.
+9. **Historical Trends & Longitudinal Analysis (Phase 13)**: Top-level view mode switcher (`Current Performance` vs `Historical Trends`), run comparison cards, price rises/drops tables, percentage-point ownership shifts, points/form acceleration, transparent momentum scoring, player timeline progression chart (`st.line_chart`), macro team/position delta comparisons, and historical storage audit.
 
 ### 🚀 Launching the Dashboard Locally
 ```bash

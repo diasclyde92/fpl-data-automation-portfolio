@@ -192,3 +192,81 @@ def test_get_fpl_analytics_bundle_nonexistent_db(tmp_path: Path):
     assert result.summary.total_players == 0
     assert result.quality.is_empty is True
     assert latest_scraped is None
+
+
+# ---------------------------------------------------------------------------
+# Historical Dashboard Service Tests (Phase 13)
+# ---------------------------------------------------------------------------
+
+def test_get_fpl_historical_bundle_nonexistent_db(tmp_path: Path):
+    """Verify historical bundle returns empty result safely when DB missing."""
+    from src.dashboard.fpl_dashboard_service import get_fpl_historical_bundle
+    bundle = get_fpl_historical_bundle(db_path=tmp_path / "nonexistent_fpl.db")
+    assert isinstance(bundle, dict)
+    assert bundle["quality"]["status"] == "empty history"
+    assert bundle["summary"]["total_players_compared"] == 0
+
+
+def test_get_fpl_historical_bundle_with_two_runs(tmp_path: Path):
+    """Verify historical bundle loads comparison and movers properly."""
+    from src.dashboard.fpl_dashboard_service import get_fpl_historical_bundle
+    db_file = tmp_path / "fpl_bundle_hist.db"
+    storage = FPLStorage(db_path=db_file)
+
+    p1_r1 = FPLPlayer(
+        id=1, first_name="A", second_name="B", web_name="P1", team="ARS", position="MID",
+        price=10.0, total_points=50, event_points=5, selected_by_percent=20.0, form=5.0,
+    )
+    p1_r2 = FPLPlayer(
+        id=1, first_name="A", second_name="B", web_name="P1", team="ARS", position="MID",
+        price=10.2, total_points=60, event_points=10, selected_by_percent=25.0, form=7.0,
+    )
+
+    storage.create_run("run_1", source="http://test", scraped_at="2026-10-01T10:00:00+00:00")
+    storage.save_current_and_snapshots("run_1", [p1_r1])
+    storage.complete_run("run_1", 1, 1, 0, 1)
+
+    storage.create_run("run_2", source="http://test", scraped_at="2026-10-02T10:00:00+00:00")
+    storage.save_current_and_snapshots("run_2", [p1_r2])
+    storage.complete_run("run_2", 1, 1, 0, 1)
+
+    bundle = get_fpl_historical_bundle(db_path=db_file)
+    assert bundle["quality"]["status"] == "healthy history"
+    assert bundle["summary"]["total_players_compared"] == 1
+    assert bundle["summary"]["latest_run_id"] == "run_2"
+    assert bundle["summary"]["previous_run_id"] == "run_1"
+
+    # Price rise
+    assert len(bundle["price_increases"]) == 1
+    assert bundle["price_increases"][0]["web_name"] == "P1"
+    assert bundle["price_increases"][0]["price_change"] == 0.2
+
+    # Ownership gain
+    assert len(bundle["ownership_gainers"]) == 1
+    assert bundle["ownership_gainers"][0]["ownership_change_pp"] == 5.0
+
+
+def test_get_historical_player_timeline_service(tmp_path: Path):
+    """Verify retrieving player timeline DataFrame via service layer."""
+    from src.dashboard.fpl_dashboard_service import get_historical_player_timeline
+    db_file = tmp_path / "fpl_timeline.db"
+    storage = FPLStorage(db_path=db_file)
+
+    p = FPLPlayer(
+        id=42, first_name="Martin", second_name="Odegaard", web_name="Odegaard", team="ARS", position="MID",
+        price=8.5, total_points=45, event_points=4, selected_by_percent=12.0,
+    )
+    storage.create_run("run_x", source="http://test", scraped_at="2026-10-01T10:00:00+00:00")
+    storage.save_current_and_snapshots("run_x", [p])
+    storage.complete_run("run_x", 1, 1, 0, 1)
+
+    timeline = get_historical_player_timeline(player_id=42, db_path=db_file)
+    assert len(timeline) == 1
+    assert timeline.iloc[0]["web_name"] == "Odegaard"
+    assert timeline.iloc[0]["price"] == 8.5
+    assert timeline.iloc[0]["points_per_million"] == 5.29
+
+    # Nonexistent player
+    empty_tl = get_historical_player_timeline(player_id=999, db_path=db_file)
+    assert empty_tl.empty
+
